@@ -1,6 +1,6 @@
 ### Sketchfish
 
-i like fish
+big fan of fish
 
 <pre>
 
@@ -13,6 +13,6 @@ i like fish
       `\_   ===    \.  |
       / /\_   \ /      |
       |/   \_  \|      /
- snd         \________/
+             \________/
 
 </pre>
