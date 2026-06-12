@@ -107,6 +107,43 @@ was wrong — fall back to serial for that pair.
 
 ---
 
+## Which model runs which prompt (and why)
+
+Each prompt is tagged **Recommended: Claude** or **Recommended: Codex**. The split exists for
+**two reasons**: (1) spreading load across both tools so you don't hit one tool's usage limit
+mid-wave, and (2) a small quality edge on judgment-heavy tasks.
+
+**The honest version: model choice barely matters here**, because nearly everything is gated
+by automated tests — green is green regardless of who wrote it. So treat the tags as a *default
+allocation for load-balancing*, not a hard rule. If you're about to hit a limit on one tool,
+move the task to the other; the test gate protects you either way.
+
+The one axis that does matter — *how much of the task a test actually judges*:
+- **Crisply test-gated math** (Wave 1, 3A, 5A) → model is irrelevant; default these to **Codex**
+  to keep Claude headroom for where it counts.
+- **Judgment a test can't fully catch** → default to **Claude**: taste calls (the Wave 2
+  "reads like a teacher" eyeball, the de-risk recommendation, M5 interpretation) and
+  principle-defense (alignment/pose/3D, where the convenient shortcut violates spec §2 and a
+  test won't always catch it).
+
+| Wave | Default | Reason |
+|---|---|---|
+| De-risk sidecar | Claude | the path *recommendation* is a judgment call |
+| 0 foundation | Claude | frozen contract + principle-defense; everyone inherits a subtle miss |
+| 1A/1B/1C measurement | Codex | crisp formula → crisp test; fan out for parallel speed |
+| 2 wire + eyeball | Claude | the "teacher vs coordinate-diff" gate isn't a test |
+| 3A harness | Codex | pure, test-gated throughput |
+| 3B pose | Claude | principle #4 ("3D is attribution only") is the shortcut trap |
+| 4 detection | Claude | long decision-tree + architecture judgment |
+| 5A contours | Codex | test-gated geometry |
+| 5B SVG + web | Claude | multi-step product surface, more design judgment |
+| 6 benchmark | Claude | interpreting the comparison is a taste call |
+
+Mixing tools costs nothing in coordination — both read the same `AGENTS.md`/`CLAUDE.md` and the
+same prompts below.
+
+---
+
 ## Copy-paste prompts
 
 Each prompt is self-contained; the agent will read the spec and this doc itself. Replace
@@ -115,6 +152,7 @@ Each prompt is self-contained; the agent will read the spec and this doc itself.
 ---
 
 ### ▶ De-risk sidecar — run this first / in parallel with Wave 0
+**Recommended: Claude** — the deliverable is a qualitative path recommendation, not a test.
 
 ```
 Read ART_STOCKFISH_SPEC.md (the "Before M0 — one-hour de-risk" note and §2, §10) and the
@@ -140,6 +178,7 @@ loudly; it changes the architecture.
 ---
 
 ### ▶ Wave 0 — Foundation (serial, 1 agent)
+**Recommended: Claude** — frozen contract + principle-defense; a subtle miss here propagates.
 
 ```
 Read ART_STOCKFISH_SPEC.md fully — especially §2 (principles), §4 (stack/conventions),
@@ -171,10 +210,12 @@ output, and a README progress note. After this, schema.py is treated as read-onl
 ---
 
 ### ▶ Wave 1 — Measurement (PARALLEL ×3)
+**Recommended: Codex ×3** — crisp formula→test modules; fan out to save Claude headroom. (Any
+can move to Claude if you hit a Codex limit.)
 
 Hand all three out at once, each in its own worktree.
 
-**1A — landmark residuals**
+**1A — landmark residuals** · Codex
 ```
 Read ART_STOCKFISH_SPEC.md §2, §6, §9.2, §9.3, and the Loop Contract + Ground Rules in
 IMPLEMENTATION_PLAN.md. schema.py / align.py / frame.py already exist and are READ-ONLY.
@@ -194,7 +235,7 @@ section in config.py. Do not edit schema/align/frame or other measure/* files.
 LOOP until green; hand back per Loop Contract.
 ```
 
-**1B — proportion ratios**
+**1B — proportion ratios** · Codex
 ```
 Read ART_STOCKFISH_SPEC.md §2, §6, §9.2, §9.4, and the Loop Contract + Ground Rules in
 IMPLEMENTATION_PLAN.md. schema.py / align.py / frame.py exist and are READ-ONLY.
@@ -213,7 +254,7 @@ section in config.py. Touch nothing else.
 LOOP until green; hand back per Loop Contract.
 ```
 
-**1C — feature angles**
+**1C — feature angles** · Codex
 ```
 Read ART_STOCKFISH_SPEC.md §2, §6, §9.2, §9.4, and the Loop Contract + Ground Rules in
 IMPLEMENTATION_PLAN.md. schema.py / align.py / frame.py exist and are READ-ONLY.
@@ -235,6 +276,7 @@ LOOP until green; hand back per Loop Contract.
 ---
 
 ### ▶ Wave 2 — Wire it up + M0 acceptance (serial, 1 agent)
+**Recommended: Claude** — the "reads like a teacher, not a coordinate diff" eyeball isn't a test.
 
 ```
 Read ART_STOCKFISH_SPEC.md §6, §8 (M0), §9.5, §11, and the Loop Contract + Ground Rules in
@@ -267,8 +309,9 @@ Contract, including the demo command output and the eyeball verdict. **M0 is DON
 ---
 
 ### ▶ Wave 3 — Harness + Pose (PARALLEL ×2)
+Split across tools so they run at once without sharing a usage limit.
 
-**3A — M1 synthetic harness & metrics**
+**3A — M1 synthetic harness & metrics** · Codex (pure test-gated throughput)
 ```
 Read ART_STOCKFISH_SPEC.md §8 (M1), §1, and the Loop Contract + Ground Rules in
 IMPLEMENTATION_PLAN.md. The full M0 pipeline exists and is READ-ONLY for you.
@@ -290,7 +333,7 @@ OWNERSHIP: synth/distort.py, synth/__init__.py, tests/test_harness.py, tests/tes
 LOOP until gates pass; hand back per Loop Contract with the precision/recall/mag-error table.
 ```
 
-**3B — M1.5 pose attribution**
+**3B — M1.5 pose attribution** · Claude (principle #4 — "3D is attribution only" — is the shortcut trap)
 ```
 Read ART_STOCKFISH_SPEC.md §2 (principle #4!), §8 (M1.5), §7, and the Loop Contract + Ground
 Rules in IMPLEMENTATION_PLAN.md. M0 pipeline exists.
@@ -316,6 +359,7 @@ LOOP until green; hand back per Loop Contract.
 ---
 
 ### ▶ Wave 4 — Real detection (serial, 1 agent; may overlap Wave 3)
+**Recommended: Claude** — long decision-tree (path 1/2/3) + architecture judgment.
 
 ```
 Read ART_STOCKFISH_SPEC.md §8 (M2), §10, data/detection_report.md (from the de-risk sidecar),
@@ -348,7 +392,7 @@ path's gates pass; hand back per Loop Contract with both number sets.
 > Split chosen so files don't collide: **M3 produces contour/negspace Findings with geometry
 > in `evidence`; M4 owns `annotate.py` and renders that evidence.** M3 must NOT edit annotate.py.
 
-**5A — M3 contours & negative space**
+**5A — M3 contours & negative space** · Codex (test-gated geometry)
 ```
 Read ART_STOCKFISH_SPEC.md §8 (M3), §9.2, and the Loop Contract + Ground Rules in
 IMPLEMENTATION_PLAN.md.
@@ -370,7 +414,7 @@ already in synth/distort.py (read-only — extend via your own test helpers if n
 LOOP until green; hand back per Loop Contract.
 ```
 
-**5B — M4 product surface (SVG + web)**
+**5B — M4 product surface (SVG + web)** · Claude (multi-step product surface, more design judgment)
 ```
 Read ART_STOCKFISH_SPEC.md §8 (M4), §6, and the Loop Contract + Ground Rules in
 IMPLEMENTATION_PLAN.md.
@@ -394,6 +438,7 @@ screenshot or saved SVG path.
 ---
 
 ### ▶ Wave 6 — Benchmark vs VLM (serial, 1 agent)
+**Recommended: Claude** — interpreting the comparison table is a taste call.
 
 ```
 Read ART_STOCKFISH_SPEC.md §8 (M5), §1, §2 (principle #1), and the Loop Contract + Ground

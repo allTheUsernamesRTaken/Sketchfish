@@ -31,3 +31,50 @@ passes M0-T3 (a group displaced 25% of head height leaves all other features bel
 under robust alignment, and demonstrates that naive least-squares smears the blame) and M0-T4 (a
 7° page rotation is fully absorbed by the similarity transform, leaving zero residual). Run it
 with `pytest tests/test_align.py -q`.
+
+**Wave 1A — landmark residual decomposition (done).** `measure/landmarks.py` turns a
+(reference, sketch) landmark pair into per-group `Finding` objects (spec §9.3). It robustly
+aligns the sketch to the reference (similarity only, §9.1), then for each semantic group
+(left/right eye, nose, mouth, jaw, brows) takes the group's mean residual vector in the
+reference face frame and splits it into vertical/horizontal components — each component over
+the §6 noise floor becomes one `Level.PLACEMENT` finding ("too high/low", "too far left/right")
+with severity read from the shared displacement tiers. A separate per-group internal spread
+ratio yields a scale finding ("too large/too small"), tiered against the area thresholds. Every
+finding carries the raw points and residual vectors in `evidence` for `annotate.py`. The gates
+in `tests/test_measure_landmarks.py` pass: shifting the left-eye group up 5% of head height
+yields exactly one `left_eye_vertical` / "too high" finding at 5.0% ± 0.5% (measured 4.996%,
+MISTAKE tier) with no other group flagged, and identical inputs yield zero findings. Run it with
+`pytest tests/test_measure_landmarks.py -q`.
+
+**Wave 1C — feature angle comparisons (done).** `measure/angles.py` fits a least-squares/PCA
+line through each relevant feature in both images — the eye line (the four eye corners), the
+mouth line (the two outer corners), and the left/right jaw tangents — and critiques the
+*difference* in orientation in degrees (spec §9.4, "match the reference, never the textbook").
+The sketch is first registered to the reference with the robust similarity transform (§9.1), so
+a globally tilted page is absorbed and only a real relational/contour tilt survives. Each line
+over the §6 angle floor becomes one `axis="angle"` `Finding` ("tilted clockwise / counter-
+clockwise", severity from the shared 2/5/10° tiers), with the eye/mouth lines ranked `PLACEMENT`
+and the jaw tangents `SHAPE`; `evidence` carries both fitted line directions and angles for
+`annotate.py`. The gates in `tests/test_measure_angles.py` pass: rotating the eye-line landmarks
+6° produces exactly one `eye_line_angle` finding at 6.00° (±0.5°) with the correct direction,
+while a 7° whole-face page tilt yields zero findings. Run it with
+`pytest tests/test_measure_angles.py -q`.
+
+**Wave 1B — canon-ratio proportions (done).** `measure/proportions.py` computes each v1 canon
+ratio (spec §9.4) — eye-line height / head height, face thirds, interocular / eye width, nose
+length / face height, mouth width / interocular — in **both** images and critiques the
+*difference*, so the target is always "match the reference," never "match the textbook" (handles
+non-canonical references; pitfall §12). Because every ratio is a quotient of lengths it is
+invariant to the similarity alignment, so each is measured in its own face frame and compared
+directly — no Procrustes step needed. A ratio whose sketch value departs from the reference's
+past the noise floor becomes one `axis="proportion"` `Finding` (magnitude = ratio deviation as a
+percent of the reference ratio, `units="%ratio"`); the two overall-proportion cues (eye-line
+height, face-thirds balance) rank `GLOBAL` and the feature-relative ratios rank `PLACEMENT`, so
+findings sort coarse-to-fine. Severity uses ratio-deviation tiers (5/10/20%) added to `config.py`
+under `# --- proportions ---`; `evidence` carries the two ratios, the signed deviation and the
+landmark points for `annotate.py`. The gates in `tests/test_measure_proportions.py` pass: a
+known 15% interocular widening (mouth widened in proportion to isolate the rule) yields exactly
+one `interocular_eye_width` / "too wide" finding at 15.0% ± 0.5% (MISTAKE tier), the same
+narrowing flips the sign, matched ratios yield zero findings, and a sanity test confirms the
+widening genuinely couples the two interocular ratios when left uncompensated. Run it with
+`pytest tests/test_measure_proportions.py -q`.

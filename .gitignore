@@ -24,3 +24,5 @@ htmlcov/
 # Editor / OS cruft
 .DS_Store
 Thumbs.db
+
+.claude/

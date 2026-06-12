@@ -16,7 +16,26 @@
       "Bash(data/.venv/Scripts/python.exe -c ' *)",
       "Bash(curl -sL -m 120 -o data/_scripts/face_landmarker.task \"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task\")",
       "Bash(data/.venv/Scripts/python.exe data/_scripts/xdog_tune.py)",
-      "Bash(data/.venv/Scripts/python.exe data/_scripts/make_sources.py)"
+      "Bash(data/.venv/Scripts/python.exe data/_scripts/make_sources.py)",
+      "PowerShell(py -3.11 --version 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pip install --upgrade pip)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pip install -e \".[dev]\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -c \"import numpy, scipy, cv2; print\\('imports OK'\\)\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest)",
+      "Bash(ls -la src/artstockfish/measure/)",
+      "Bash(ls -la tests/)",
+      "Bash(cat pyproject.toml)",
+      "Bash(ls -la src/artstockfish/measure)",
+      "Bash(cat setup.cfg conftest.py tests/conftest.py)",
+      "Bash(python -m pytest tests/test_measure_landmarks.py -q)",
+      "Bash(python -m pytest -q)",
+      "Bash(python -c ' *)",
+      "Bash(xxd)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/test_measure_proportions.py -q)",
+      "Bash(./.venv/Scripts/python.exe -m pytest tests/test_measure_proportions.py -v)",
+      "Bash(./.venv/Scripts/python.exe -m pytest -q)",
+      "Bash(./.venv/Scripts/python.exe -c \"import matplotlib; print\\('matplotlib', matplotlib.__version__\\)\")",
+      "Bash(python scratch_angles_viz.py)"
     ]
   }
 }
