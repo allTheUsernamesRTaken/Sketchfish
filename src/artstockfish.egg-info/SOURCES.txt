@@ -10,3 +10,11 @@ src/artstockfish.egg-info/SOURCES.txt
 src/artstockfish.egg-info/dependency_links.txt
 src/artstockfish.egg-info/requires.txt
 src/artstockfish.egg-info/top_level.txt
+src/artstockfish/measure/__init__.py
+src/artstockfish/measure/angles.py
+src/artstockfish/measure/landmarks.py
+src/artstockfish/measure/proportions.py
+tests/test_align.py
+tests/test_measure_angles.py
+tests/test_measure_landmarks.py
+tests/test_measure_proportions.py
