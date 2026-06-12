@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pip --version)",
+      "Bash(curl -s -m 15 -o /dev/null -w \"%{http_code}\\\\n\" \"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Albert_Einstein_Head.jpg/256px-Albert_Einstein_Head.jpg\")",
+      "Bash(curl -s -m 15 -o /dev/null -w \"%{http_code}\\\\n\" \"https://pypi.org/simple/mediapipe/\")",
+      "Bash(mkdir -p data/line_art data/photos data/xdog data/overlays)",
+      "Bash(python -m venv data/.venv)",
+      "Bash(data/.venv/Scripts/python.exe -m pip install --upgrade pip)",
+      "Bash(data/.venv/Scripts/python.exe -m pip install mediapipe opencv-python numpy requests)",
+      "Bash(data/.venv/Scripts/python.exe -c \"import mediapipe as mp, cv2, numpy as np; print\\('mediapipe', mp.__version__\\); print\\('cv2', cv2.__version__\\); print\\('numpy', np.__version__\\)\")",
+      "Bash(data/.venv/Scripts/python.exe data/_scripts/collect.py)",
+      "Bash(data/.venv/Scripts/python.exe data/_scripts/collect2.py)",
+      "Bash(data/.venv/Scripts/python.exe data/_scripts/collect3.py)",
+      "Bash(data/.venv/Scripts/python.exe data/_scripts/run_facemesh.py)",
+      "Bash(data/.venv/Scripts/python.exe -c ' *)",
+      "Bash(curl -sL -m 120 -o data/_scripts/face_landmarker.task \"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task\")",
+      "Bash(data/.venv/Scripts/python.exe data/_scripts/xdog_tune.py)",
+      "Bash(data/.venv/Scripts/python.exe data/_scripts/make_sources.py)"
+    ]
+  }
+}

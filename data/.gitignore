@@ -1,0 +1,9 @@
+# data/ is gitignored per AGENTS.md: never commit datasets or large fixtures.
+# Ignore everything in this directory...
+*
+# ...except the human-readable reports/manifests that document the experiment.
+!.gitignore
+!detection_report.md
+!README.md
+!sources.csv
+!results.csv
