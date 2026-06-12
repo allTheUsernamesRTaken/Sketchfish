@@ -44,7 +44,14 @@
       "Bash(PYTHONIOENCODING=utf-8 ./.venv/Scripts/python.exe -c ' *)",
       "Bash(./.venv/Scripts/python.exe -m artstockfish.cli demo-synthetic --out demo_overlay.png)",
       "Bash(./.venv/Scripts/python.exe -m pytest tests/test_evaluate.py tests/test_m0_acceptance.py -v)",
-      "Bash(./.venv/Scripts/python.exe -m artstockfish.cli demo-synthetic)"
+      "Bash(./.venv/Scripts/python.exe -m artstockfish.cli demo-synthetic)",
+      "Bash(python -c \"import cv2, scipy, numpy; print\\('cv2', cv2.__version__\\); print\\('scipy', scipy.__version__\\); print\\('numpy', numpy.__version__\\)\")",
+      "Bash(python /tmp/scratch_pipe.py)",
+      "Bash(python -m pytest tests/test_pose.py -q)",
+      "Bash(python -m pytest tests/test_pose.py tests/test_m0_acceptance.py tests/test_stability.py tests/test_harness.py tests/test_evaluate.py -v)",
+      "Bash(python -m artstockfish.cli demo-synthetic)",
+      "Bash(python /tmp/sent.py)",
+      "Bash(python -m pytest)"
     ]
   }
 }
