@@ -1,0 +1,12 @@
+numpy
+scipy
+opencv-python
+
+[detect]
+mediapipe
+
+[dev]
+pytest
+
+[geom]
+shapely

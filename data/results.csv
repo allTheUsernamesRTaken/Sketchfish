@@ -1,0 +1,26 @@
+kind,id,note,detected@0.5,detected@0.2,n_landmarks
+line_art,la05,"loose graphite sketch, seated man w/ hat, 3/4",N,N,0
+line_art,la06,"simple clean newspaper line drawing, woman, frontal",Y,Y,478
+line_art,la07,"chalk/pencil drawing, man w/ wide hat, near-frontal",N,N,0
+line_art,la08,"bold high-contrast ink portrait, man, frontal (beard+glasses)",N,N,0
+line_art,la13,"blind-contour drawing, young man, frontal (crude/distorted)",N,N,0
+line_art,la14,"loose charcoal, boxer, head tilted down 3/4",Y,N,478
+line_art,la15,"graphite sketch, man, strict side profile",N,N,0
+line_art,la17,"realistic shaded pencil, woman, 3/4",Y,Y,478
+line_art,la19,"loose graphite sketch, man w/ cigarette+glasses, 3/4",N,N,0
+line_art,la20,"modern shaded pencil, man, frontal (beard+glasses)",N,N,0
+line_art,la21,"faint light pencil sketch, bearded man, frontal (low contrast)",Y,Y,478
+line_art,la25,"stipple engraving, old woman, 3/4",N,N,0
+line_art,la28,"ukiyo-e woodblock print, woman, stylized frontal",N,N,0
+line_art,la30,"colored-chalk drawing, woman, strict profile",N,Y,478
+line_art,la32,"soft graphite drawing, young woman, near-frontal 3/4",Y,Y,478
+xdog_photo,ph08_xdog,"modern color studio headshot, man, frontal smiling",Y,Y,478
+xdog_photo,ph10_xdog,"official portrait, older man w/ glasses, frontal",N,N,0
+xdog_photo,ph11_xdog,"elderly woman close-up, frontal",N,N,0
+xdog_photo,ph15_xdog,"woman w/ facial tattoos, frontal smiling",N,N,0
+xdog_photo,ph18_xdog,"woman w/ cigarette, frontal smiling",N,N,0
+photo_ctrl,ph08,"modern color studio headshot, man, frontal smiling",Y,Y,478
+photo_ctrl,ph10,"official portrait, older man w/ glasses, frontal",Y,Y,478
+photo_ctrl,ph11,"elderly woman close-up, frontal",N,Y,478
+photo_ctrl,ph15,"woman w/ facial tattoos, frontal smiling",Y,Y,478
+photo_ctrl,ph18,"woman w/ cigarette, frontal smiling",Y,Y,478

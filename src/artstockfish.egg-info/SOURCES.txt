@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+src/artstockfish/__init__.py
+src/artstockfish/align.py
+src/artstockfish/config.py
+src/artstockfish/frame.py
+src/artstockfish/schema.py
+src/artstockfish.egg-info/PKG-INFO
+src/artstockfish.egg-info/SOURCES.txt
+src/artstockfish.egg-info/dependency_links.txt
+src/artstockfish.egg-info/requires.txt
+src/artstockfish.egg-info/top_level.txt
