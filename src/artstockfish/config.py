@@ -249,3 +249,55 @@ PROPORTION_RATIOS = {
         "lower": "too narrow",
     },
 }
+
+# --- synth ---
+# Synthetic harness constants (spec §8 M1). The randomized M1 gate uses a fixed
+# seed and N=200 so the headline precision/recall/magnitude numbers are
+# deterministic and reproducible.
+SYNTH_RANDOM_SEED = 20260612       # spec §2 principle #7: deterministic stability
+SYNTH_HARNESS_CASES = 200          # spec §8 M1: N=200 randomized cases
+SYNTH_PRECISION_GATE = 0.95        # spec §8 M1 gate
+SYNTH_RECALL_GATE = 0.95           # spec §8 M1 gate
+SYNTH_MAG_ERROR_GATE = 0.20        # spec §8 M1: median error <= 20% injected mag
+SYNTH_STABILITY_RUNS = 20          # spec §8 M1-T4: 20 jittered runs
+SYNTH_STABILITY_GATE = 0.95        # spec §8 M1-T4: identical ids+severities >=95%
+SYNTH_JITTER_SIGMA_HEAD_FRAC = 0.005  # spec §8 M1-T4: Gaussian σ=0.5% head height
+
+# --- pose ---
+# Head-pose attribution layer (spec §8 M1.5, principle #4). We estimate head pose
+# for the reference and the sketch INDEPENDENTLY via cv2.solvePnP on a canonical 3D
+# 68-point model, compare the rotations, and — if they differ past the threshold
+# below — emit ONE Level.GLOBAL pose finding and reproject the reference at the
+# student's pose before the local residuals run. 3D is used for attribution only:
+# we never fit 3D geometry to the sketch's drawing errors (principle #4).
+#
+# Threshold: the in-image angle floor is 2° (ANGLE_OK_MAX, §6), but a solvePnP pose
+# estimate off noisy/perturbed landmarks is coarser than a single line fit, so the
+# pose floor is set higher so detector/perturbation noise alone does not trip a
+# spurious GLOBAL pose finding (mirrors the "don't show below the noise floor" rule,
+# pitfall §12). A real turn of the head (the M1.5 tests use ±10° yaw) is well above
+# it. Yaw/pitch only — in-plane roll is page tilt, already absorbed by the
+# similarity alignment (principle #2), so it never becomes a pose finding. Tune
+# against labelled 300W-LP poses in a later wave. (Logged in DECISIONS.md.)
+POSE_DIFF_OK_MAX = 4.0             # deg; below this the two heads face the same way
+
+# Robust pose: after the full solvePnP, drop the worst POSE_TRIM fraction of points
+# by reprojection error and re-solve on the inliers, so a localized drawing error
+# can't drag the global pose toward itself (principle #3; mirrors align.ROBUST_TRIM).
+POSE_TRIM = 0.25                   # spec §9.1 robustness analogue (ROBUST_TRIM = 0.25)
+
+# Severity for the pose finding reuses the shared ANGLE_TIERS (2/5/10°, §6): a head
+# turned 5–10° further than the reference is a MISTAKE, >10° a BLUNDER. The score
+# normalizes by the angle floor so a pose finding that just crosses POSE_DIFF_OK_MAX
+# still ranks above placement noise.
+POSE_SEVERITY_UNIT = ANGLE_OK_MAX  # spec §9.5: score = weight × magnitude / unit
+
+# Pose is the most structural cue (the coarsest level, spec §2 #5), so it carries a
+# full importance weight — it should sort to the very top of the GLOBAL tier.
+POSE_WEIGHT = 1.0                  # spec §9.5 scale (eyes 1.0); pose is top-level
+
+# Camera model for solvePnP / reprojection. A long focal length (a multiple of the
+# image's long side) keeps perspective mild so the synthetic projection stays near
+# the weak-perspective regime faces are usually shot in; the exact value only has to
+# be used consistently for both solvePnP and the reprojection (it is, in pose.py).
+POSE_FOCAL_LENGTH_FACTOR = 2.0     # focal = factor × max(image_w, image_h)

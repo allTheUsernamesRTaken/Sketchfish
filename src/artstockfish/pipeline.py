@@ -29,6 +29,7 @@ from .evaluate import build_report
 from .frame import LANDMARK_NAMES_68
 from .measure.angles import angle_findings, measure_angles
 from .measure.landmarks import measure_landmarks
+from .measure.pose import condition_on_pose
 from .measure.proportions import proportion_findings
 from .schema import Finding, Landmarks, Report
 
@@ -106,32 +107,44 @@ def critique_pair(
         A :class:`CritiqueResult` with the ranked report, parallel critique
         sentences, the shared alignment's aligned sketch points, and the overlay path.
     """
-    ref_pts = np.asarray(reference.points, dtype=np.float64)
     sketch_pts = np.asarray(sketch.points, dtype=np.float64)
+
+    # --- pose attribution stage (M1.5, spec §7 diagram: before residuals) ---------
+    # Estimate both heads' poses; if they face different ways, emit ONE GLOBAL pose
+    # finding and swap in the reference reprojected at the student's pose so every
+    # local residual below is measured "given the angle the student drew" — one
+    # structural difference reported once, not smeared across the features (spec §8
+    # M1.5, principle #4). Below threshold this is a no-op and the M0 path is unchanged.
+    pose_cond = condition_on_pose(reference, sketch)
+    measure_reference = pose_cond.reference
+    ref_pts = np.asarray(measure_reference.points, dtype=np.float64)
 
     # One shared robust similarity alignment for the whole report (§9.1).
     s, R, t = robust_align(ref_pts, sketch_pts)
     aligned = apply_similarity(s, R, t, sketch_pts)
     aligned_lm = Landmarks(
-        points=aligned, names=reference.names, image_size=reference.image_size
+        points=aligned, names=measure_reference.names, image_size=measure_reference.image_size
     )
 
     # Measure on the shared alignment (align=False ⇒ use the pre-aligned points).
-    placement = measure_landmarks(reference, aligned_lm, align=False)
-    angles = measure_angles(reference, aligned_lm, align=False)
-    # Proportions are similarity-invariant; measure them on the raw sketch.
-    proportions = proportion_findings(reference, sketch)
+    placement = measure_landmarks(measure_reference, aligned_lm, align=False)
+    angles = measure_angles(measure_reference, aligned_lm, align=False)
+    # Proportions are similarity-invariant; measure them on the raw sketch against the
+    # (pose-conditioned) reference, whose ratios already reflect the student's pose.
+    proportions = proportion_findings(measure_reference, sketch)
 
     angles = suppress_explained_angles(angles, placement, ref_pts, aligned)
 
     findings = placement + angles + proportions
+    if pose_cond.finding is not None:
+        findings = [pose_cond.finding] + findings
     transform = {
         "scale": float(s),
         "rotation": R.tolist(),
         "translation": t.tolist(),
         "rotation_deg": rotation_angle_deg(R),
     }
-    report = build_report(findings, transform=transform, pose=None)
+    report = build_report(findings, transform=transform, pose=pose_cond.pose)
     sentences = critique_report(report)
 
     overlay = None

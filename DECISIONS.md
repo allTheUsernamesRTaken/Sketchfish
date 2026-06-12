@@ -40,6 +40,44 @@ Dated, one-line departures from `ART_STOCKFISH_SPEC.md` with the reason
   for this milestone and no parallel agent owns it now; flagged here and in the handoff rather
   than done silently (AGENTS.md / Ground Rule 2).
 
+- 2026-06-12 (Wave 3B, M1.5 pose) — Canonical 3D model source: spec §8 M1.5 suggests "a
+  published canonical set or MediaPipe's metric face model" for the 68-point 3D landmarks, but
+  neither asset is downloaded in this repo (and `data/` is gitignored). `measure/pose.py`
+  synthesizes the canonical 3D model from the project's canonical 2D face by adding an
+  ellipsoidal-head depth profile (face centre bulges toward the camera, rim/temples/jaw recede)
+  with the nose protruded. This is *attribution scaffolding* — a fixed rigid model used to solve
+  both images' poses — never a reconstruction of the sketch (principle #4); only a consistent,
+  non-planar shape is needed for a well-posed PnP. Swap in a published 3DMM mean face when one is
+  available; the pose API is unaffected.
+
+- 2026-06-12 (Wave 3B, M1.5 pose) — SQPNP for branch selection: a near-frontal face is a
+  near-planar PnP problem with a two-fold ambiguity, and plain iterative `solvePnP` was landing on
+  the flipped (upside-down, roll ≈ ±180°) branch for one image but not the other — fabricating a
+  bogus ~8° pose difference between two genuinely front-facing portraits (it broke M0-T1 once the
+  pose stage was wired in). `estimate_pose` uses `cv2.SOLVEPNP_SQPNP` (global, deterministic,
+  init-free) for the initial solve, which picks the geometrically correct upright branch, then
+  refines with seeded iterative PnP. Portraits are upright/front-facing by scope (§3), so this is
+  the right prior, not a special case.
+
+- 2026-06-12 (Wave 3B, M1.5 pose) — Robust (trimmed) PnP: mirroring `align.robust_align`
+  (principle #3), `estimate_pose` drops the worst `POSE_TRIM` (=0.25) fraction of points by
+  reprojection error and re-solves on the inliers, so a *localized* drawing error (e.g. one eye
+  drawn out of place) cannot drag the global pose toward itself. Without this the perturbed eye in
+  M1.5-T2 biased the recovered yaw by ~0.8° and pulled the conditioned eye magnitude down to
+  ~4.75%; with it the pose stays at 10.0° and the eye measures 5.01% (well inside the ±1% gate).
+  Deterministic (inlier selection by sorted residual; no RANSAC randomness — principle #7).
+
+- 2026-06-12 (Wave 3B, M1.5 pose) — Pose threshold & finding shape: the in-image angle floor is
+  2° (§6), but a solvePnP pose off noisy/perturbed landmarks is coarser than a single line fit, so
+  `POSE_DIFF_OK_MAX = 4°` is the pose noise floor (don't surface below the noise floor, pitfall
+  §12). Only yaw/pitch can trip it — in-plane roll is page tilt, already absorbed by the similarity
+  alignment (principle #2). Per spec "emit ONE Level.GLOBAL finding", the layer emits a single
+  finding for the dominant out-of-plane axis (`pose_yaw` / `pose_pitch`, the other component in
+  `evidence`), `axis="pose"`, severity from the shared `ANGLE_TIERS`. critique.py is owned by
+  Wave 2 and not edited here; its defensive fallback template renders the pose finding cleanly
+  ("The head is rotated further right by 10° relative to the reference."), matching the §11
+  `pose_yaw` intent, so no template change was required.
+
 - 2026-06-12 (Wave 1B, proportions) — Face-thirds ratio: spec §9.4 lists "face thirds" among
   the v1 ratios, but the 68-point set has no hairline/crown landmark, so the *upper* third is
   not measurable (same limitation as the head-height note above). `measure/proportions.py`

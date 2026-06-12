@@ -105,3 +105,39 @@ tall — shorten the midface"* (GLOBAL), *"the left eye sits 6% too high"*, *"th
 drawn 21% too large"*, surfacing the structural error before the feature fixes. Demo:
 `python -m artstockfish.cli demo-synthetic` prints the ranked critique + accuracy and saves the
 annotated overlay PNG. Run the gates with `pytest tests/test_m0_acceptance.py tests/test_evaluate.py -q`.
+
+**Wave 3A — M1 synthetic distortion harness (done).** `synth/distort.py` now provides labeled,
+parameterized landmark distortions for the M1 conscience test: `shift_feature` translates a
+semantic group in the reference face frame and labels the expected placement finding,
+`scale_feature` scales a feature about its centroid and labels the expected `%area` scale
+finding, `rotate_line` rotates configured line features and labels angle findings, `tps_bulge`
+adds a smooth local contour-era bulge label for later M3 tests, and `compose` chains operations
+while preserving their ground-truth labels. `tests/test_harness.py` runs 200 deterministic
+single- and multi-error cases through the read-only M0 pipeline and scores every surfaced
+finding against those labels: **precision 0.989**, **recall 1.000**, **median magnitude error
+0.000** (fractional error; gate is <=0.200). `tests/test_stability.py` covers M1-T4 with 20
+Gaussian-jittered runs at sigma = 0.5% head height and requires the modal `(finding id,
+severity)` signature to appear at least 95% of the time. Run the gates with
+`pytest tests/test_harness.py tests/test_stability.py -q -s`.
+
+**Wave 3B — M1.5 head-pose attribution (done).** `measure/pose.py` adds the pose layer that
+keeps a turned head from masquerading as a storm of local errors (spec §8 M1.5, principle #4).
+It carries a fixed canonical 3D 68-point model (an ellipsoidal-head depth profile over the
+project's canonical face — attribution scaffolding, never a fit to the sketch) and estimates
+head pose for the reference and the sketch *independently* with `cv2.solvePnP`. The solve is
+robust and deterministic: a global `SQPNP` initial solve picks the upright, camera-facing branch
+(plain iterative PnP flips a near-frontal face on the planar two-fold ambiguity), then a *trimmed*
+re-solve drops the worst-fitting 25% of points so a single mislocated feature can't drag the
+global pose — the same robustness logic `robust_align` applies in 2D (principle #3). When the
+heads' yaw/pitch differ past the pose noise floor (`POSE_DIFF_OK_MAX = 4°`; in-plane roll is page
+tilt and stays absorbed by the similarity alignment, principle #2), the pipeline's single
+pose-stage hook emits **one** `Level.GLOBAL` pose finding ("the head is rotated N° further right
+than the reference") and **reprojects the reference at the student's pose** — identity-preserving,
+so a perfect-but-rotated student reprojects exactly onto the sketch — and runs every downstream
+residual against that reprojection. Below threshold the stage is a no-op and the M0 path is byte
+-for-byte unchanged. The gates in `tests/test_pose.py` pass: a frontal reference vs a +10°-yaw
+sketch yields **exactly one** GLOBAL pose finding and **zero** placement findings (M1.5-T1, with
+the reprojection landing on the sketch to <1px), and a +10° yaw *plus* a left eye shifted up 5%
+surfaces **both** the pose finding (10.0°) **and** `left_eye_vertical` at **5.0% ± 1%** after pose
+conditioning (M1.5-T2, measured 5.01%), ranked coarse-to-fine with pose first. Run the gates with
+`pytest tests/test_pose.py -q`.
