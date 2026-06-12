@@ -78,3 +78,30 @@ one `interocular_eye_width` / "too wide" finding at 15.0% ± 0.5% (MISTAKE tier)
 narrowing flips the sign, matched ratios yield zero findings, and a sanity test confirms the
 widening genuinely couples the two interocular ratios when left uncompensated. Run it with
 `pytest tests/test_measure_proportions.py -q`.
+
+**Wave 2 — wired-up M0 critique (done; M0 COMPLETE).** The measurement modules are now an
+end-to-end coach. `pipeline.py` runs one shared robust similarity alignment and feeds it to all
+three measurement modules, then `evaluate.py` ranks the findings coarse-to-fine (`Level` asc,
+then `score` desc — global proportion/pose before feature placement before local shape, spec
+§9.5/principle #5) and rolls their scores into the aggregate accuracy "eval bar"
+(`100·exp(-k·Σscore)`, `k=0.04`, which lands the realistic demo at **60/100**, inside the spec's
+55–70 target). `critique.py` turns each finding into one teacher-voiced sentence from the
+finding alone (template per axis with per-id action verbs; MISTAKE/BLUNDER append "Fix this
+before refining details." — spec §11; no hedging, one instruction per sentence), and
+`annotate.py` renders a matplotlib overlay (reference vs. aligned sketch, correction
+arrows/circles/line-pairs coloured by severity with `!?`/`?`/`??` badges; matplotlib is
+lazy-imported so the measure/evaluate/critique path never requires it). A key integration step,
+`pipeline.suppress_explained_angles`, removes angle findings that are merely *symptoms* of a
+placement already reported (e.g. a single eye shifted up tilts the eye line; reporting both
+double-counts one mistake) via a counterfactual — correct the flagged feature positions and
+re-measure; a tilt that collapses was explained, one that survives (a feature rotated in place,
+a jaw tangent) is kept (spec §2 principle #5, pitfall §12; see `DECISIONS.md`). The M0 gates in
+`tests/test_m0_acceptance.py` pass: a 5%-of-head-height left-eye shift yields **exactly one**
+`left_eye_vertical` / "too high" finding at 5.0% (MISTAKE) with the induced eye-line tilt
+explained away, and identical inputs yield zero findings with accuracy 100; `tests/test_evaluate.py`
+pins the ranking, the accuracy formula/calibration, and report assembly. The usefulness eyeball
+reads like a teacher, not a coordinate diff — the demo's top three are *"the midface is 23% too
+tall — shorten the midface"* (GLOBAL), *"the left eye sits 6% too high"*, *"the right eye is
+drawn 21% too large"*, surfacing the structural error before the feature fixes. Demo:
+`python -m artstockfish.cli demo-synthetic` prints the ranked critique + accuracy and saves the
+annotated overlay PNG. Run the gates with `pytest tests/test_m0_acceptance.py tests/test_evaluate.py -q`.

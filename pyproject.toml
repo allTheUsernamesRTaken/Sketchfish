@@ -12,6 +12,7 @@ dependencies = [
     "numpy",
     "scipy",
     "opencv-python",
+    "matplotlib",  # M0/M1 debug overlays (spec §4); annotate.py renders the demo PNG
 ]
 
 [project.optional-dependencies]
