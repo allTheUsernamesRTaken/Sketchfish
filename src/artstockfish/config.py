@@ -301,3 +301,143 @@ POSE_WEIGHT = 1.0                  # spec §9.5 scale (eyes 1.0); pose is top-le
 # the weak-perspective regime faces are usually shot in; the exact value only has to
 # be used consistently for both solvePnP and the reprojection (it is, in pose.py).
 POSE_FOCAL_LENGTH_FACTOR = 2.0     # focal = factor × max(image_w, image_h)
+
+# --- detect ---
+# M2 real detection (spec §8 M2). Path choice per data/detection_report.md: PATH 2 —
+# CPD is the default sketch detector; MediaPipe detects the *reference* (a photo,
+# where it is reliable) and serves only as a sanity-gated opportunistic fast-path on
+# the sketch (the report's la14 case shows it can return a confidently-misplaced mesh).
+
+# MediaPipe FaceLandmarker model bundle (BlazeFace short-range + 478-pt mesh), the
+# same file the de-risk sidecar used; path is relative to the repo root. Re-fetch:
+#   curl -sL -o data/_scripts/face_landmarker.task https://storage.googleapis.com/
+#     mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+DETECT_MODEL_PATH = "data/_scripts/face_landmarker.task"
+DETECT_MIN_CONFIDENCE = 0.5        # MediaPipe default (de-risk report: method)
+DETECT_RELAXED_CONFIDENCE = 0.2    # retry for tight close-ups (report: ph11 control)
+
+# Sketch-side MediaPipe gating (de-risk report: "gate every sketch detection with
+# the overlay/geometry sanity-check"). Two layers:
+# 1. A cheap ink-plausibility check — the mesh must span a sensible fraction of the
+#    drawing's ink extent and sit on ink. Measured on data/line_art: this alone does
+#    NOT reject the report's junk case (la14 spans 0.34 of a charcoal drawing whose
+#    ink is everywhere), so it only filters gross failures (mesh on blank paper).
+DETECT_GATE_MIN_SPAN = 0.25        # mesh bbox diagonal ≥ 25% of ink bbox diagonal
+DETECT_GATE_MIN_NEAR_INK = 0.50    # ≥ 50% of the 68 landmarks within the ink radius
+DETECT_GATE_INK_RADIUS_FRAC = 0.025  # "near ink" radius, fraction of ink bbox diagonal
+# 2. The decisive gate: agreement with the CPD transfer (the trusted default path,
+#    which runs regardless). MediaPipe's mesh is used only when its worst per-group
+#    mean distance to the CPD answer is below this fraction of head height — a junk
+#    mesh cannot agree with an independent classical reading of the same drawing.
+#    Per-GROUP because the measurement layer consumes group means: a whole-face
+#    median hides exactly the disagreement that changes the critique (measured: a
+#    mesh within 4% median still differed 6% on the jaw → 20° of implied pitch).
+#    Tight ≈ the displacement floor: which internal path answered must not change
+#    the critique (principle #7 stability).
+DETECT_GATE_AGREEMENT_MAX = 4.0    # %head_height, worst group-mean over the 68 pts
+
+# CPD registration (the default sketch path). CPD is *correspondence only* — it finds
+# where the landmarks are; alignment stays similarity-only Procrustes (glossary §13,
+# principle #2). Point budget bounds the O(M·N) EM cost; values below are in
+# normalized cloud units (centroid 0, RMS radius 1).
+CPD_MAX_POINTS = 1200              # per-cloud subsample budget (grid, deterministic);
+#                                    dense enough that one feature (an eye) holds ~20+
+#                                    points — the local refinement needs that support
+CPD_TOLERANCE = 1e-5               # EM convergence tolerance (pycpd default 1e-3 is too loose)
+CPD_RIGID_W = 0.10                 # rigid outlier weight (background/hair clutter)
+CPD_RIGID_MAX_ITER = 60
+CPD_DEFORM_ALPHA = 2.0             # pycpd default; smooth global drift only — feature-level
+#                                    precision comes from the local refinement stage below
+CPD_DEFORM_BETA = 0.30             # kernel width: ~feature scale
+CPD_DEFORM_W = 0.15                # deformable outlier weight
+CPD_DEFORM_MAX_ITER = 80
+# The deformable stage solves an O(M³) system per EM iteration, but it only has to
+# produce a SMOOTH carry field (precision is the local stage's job on the dense
+# clouds), so it runs on a strided subset. Striding the grid-ordered points keeps
+# spatial coverage uniform and deterministic.
+CPD_DEFORM_MAX_POINTS = 600
+# σ² annealing floor for the deformable EM (normalized units²). σ = 0.03 ≈ 1–2% of
+# head height — already below the detection noise floor; annealing past it stops
+# regularizing the kernel solve and the registration explodes numerically (see
+# cpd_register._make_stable_deformable).
+CPD_SIGMA2_FLOOR = 1e-3
+# Initial σ² for the deformable EM. pycpd's default (mean pairwise distance² of the
+# whole cloud) starts with a cloud-wide "blur" phase that walks self-similar texture
+# (hatching, engraving curls) into wrong basins. The rigid stage has already aligned
+# the clouds, so correspondence search only needs to span the largest *drawing error*
+# (~0.2 units, a blunder), not the whole face.
+CPD_SIGMA2_INIT = 0.04
+# After the rigid stage, points with no counterpart within this radius (normalized
+# units) in the other cloud are trimmed symmetrically — content only one side has
+# (shoulders, background texture) must not drag the deformable field (principle #3).
+# The radius must comfortably exceed the largest drawing error the system measures
+# (a blunder displacement ≈ 0.2–0.3 units) or the moved feature itself gets trimmed
+# and becomes invisible; true cross-content sits much farther (≳ 0.5 units).
+CPD_TRIM_RADIUS = 0.35
+# Landmarks are carried through the registration as the Gaussian-weighted average of
+# the nearby registered points' displacements (see cpd_register: evaluating the CPD
+# kernel at off-cloud points is numerically unstable when σ² collapses). Wide-ish =
+# stable: this stage only needs to park each group near its strokes; precision is the
+# local stage's job.
+CPD_CARRY_BETA = 0.25
+
+# Local per-feature refinement. Point-based registration on a dense edge cloud cannot
+# disambiguate a displaced feature from its unmoved neighbors (an eye drawn 10% too
+# high sits closer to the brow's strokes than to its own), so after the global stages
+# each semantic group is re-registered LOCALLY: a similarity-mode CPD between the ink
+# points around the group on both sides. A similarity fit measures exactly what the
+# landmark layer reads — where the feature went, its size, its rotation — and cannot
+# fabricate within-feature shape (that's M3's contour problem, not faked here).
+CPD_LOCAL_WINDOW_MARGIN = 0.18     # window: ink within this distance (normalized units)
+#                                    of the group's carried landmarks. Must exceed the
+#                                    residual displacement the global stage leaves on a
+#                                    blunder-sized error, or the window misses the
+#                                    feature's true strokes and nothing is recovered.
+CPD_LOCAL_SEARCH_SLACK = 0.0       # extra sketch-side margin. MUST stay ≈ 0: asymmetric
+#                                    windows force the local GMM to explain the extra
+#                                    target ring and bias the fit outward (measured: it
+#                                    alone pushed identity-pair error from ~0 to 3–10%).
+#                                    The deformable stage already parks each group near
+#                                    its strokes, so no slack is needed.
+CPD_LOCAL_MIN_POINTS = 12          # skip refinement when a window has fewer ink points
+CPD_LOCAL_W = 0.25                 # local outlier weight (neighboring features' strokes)
+CPD_LOCAL_MAX_ITER = 60
+CPD_LOCAL_MAX_SHIFT = 0.30         # a local fit that moves a group's centroid farther
+#                                    than this is a degenerate window — keep the global
+#                                    estimate instead (robustness, principle #3)
+# Ink-mask despeckling: connected components smaller than (frac × image diagonal)²
+# pixels are texture specks, not strokes, and are dropped from registration clouds.
+DETECT_INK_MIN_COMPONENT_FRAC = 0.005
+# Reference ink comes from XDoG of the photo cropped to the landmark bbox expanded by
+# this margin (the sketch input is, per scope §3, a drawing of the head — cropping the
+# reference to the head makes the two clouds describe the same subject).
+DETECT_FACE_CROP_MARGIN = 0.40
+
+# Detection noise floors (M2-T2). Real detection adds correspondence jitter far above
+# the synthetic floors, so findings measured from *detected* landmarks are surfaced
+# only above these raised OK floors (spec §8 M2-T2, pitfall §12 "do not show findings
+# below the detector-noise floor"). Calibrated 2026-06-12 on the usable data/photos
+# corpus: per photo, one bias pair (MediaPipe reference vs CPD-detected undistorted
+# sketchification) and one jitter pair (two random sketchifications, both CPD path);
+# each floor sits above the largest spurious magnitude observed for its units.
+# tests/test_detect.py M2-T2 re-runs the jitter experiment as the gate.
+# NOTE the honest consequence of the large area/ratio floors: per-feature *scale*
+# and canon-*proportion* findings are nearly muted in detect mode — XDoG re-renders
+# change stroke support enough that feature spread/ratios jitter wildly (measured
+# max 70.6 %area, 32.6 %ratio). Placement, line-angle, and pose findings carry the
+# critique. Improving scale/ratio observability is M3-adjacent future work.
+DETECT_OK_DISPLACEMENT = 4.0       # %head_height; max observed jitter 3.34
+DETECT_OK_ANGLE = 5.0              # deg; max observed 4.13 (jaw tangents)
+DETECT_OK_POSE = 10.0              # deg; max observed 8.98 (pitch, CPD pairs)
+DETECT_OK_AREA = 75.0              # %area; max observed 70.6 (eye scale, re-render)
+DETECT_OK_RATIO = 35.0             # %ratio; max observed 32.6 (mouth/interocular)
+
+# M2 evaluation harness (tests/test_detect.py). The eval set is every data/photos
+# image whose reference detects at the working size and reads front-facing-ish
+# (scope §3) — no hand-picked list.
+DETECT_PRECISION_GATE = 0.85       # spec §8 M2-T1
+DETECT_RECALL_GATE = 0.85          # spec §8 M2-T1
+DETECT_EVAL_MAX_SIDE = 640         # working size: photos downscale; detection stays reliable
+DETECT_EVAL_MAX_YAW_DEG = 20.0     # scope §3 "front-facing-ish": excludes profile photos
+DETECT_EVAL_CASES_PER_PHOTO = 4    # distorted eval pairs sampled per usable photo
+DETECT_EVAL_SEED = 20260612        # deterministic harness (principle #7)

@@ -84,3 +84,72 @@ Dated, one-line departures from `ART_STOCKFISH_SPEC.md` with the reason
   implements face-thirds as the ratio of the two measurable thirds (midface brow→nose-base
   over lower-face nose-base→chin), which are canonically equal; it is still critiqued against
   the reference, never against the textbook value of 1.
+
+- 2026-06-12 (Wave 4, M2) — Path 2 per `data/detection_report.md`: MediaPipe detects the
+  **reference** (photo) only; the **default sketch detector is CPD landmark transfer**
+  (`detect/cpd_register.py`), a three-stage chain — similarity-mode CPD (global), deformable
+  CPD (smooth drift), then **per-feature local similarity CPD** around each semantic group.
+  The local stage exists because point-based registration on a dense edge cloud cannot
+  disambiguate a displaced feature from its unmoved neighbors (measured: a 10 % eye shift
+  recovered only ~25 % globally, ~60–80 % with the local stage). A local *similarity* fit
+  measures exactly what `measure/landmarks.py` reads (position/scale/rotation) and cannot
+  fabricate within-feature shape. Open-curve groups (jaw, brows) get a normal-direction
+  translation only — the aperture problem makes tangential motion/rotation/scale from an arc
+  window unobservable noise (measured: full similarity on the jaw *worsened* it 2.2→6.7 %).
+
+- 2026-06-12 (Wave 4, M2) — pycpd numerical guards (`_make_stable_deformable`): vanilla pycpd
+  diverges on *well-matched* clouds — σ² anneals toward zero, the α·σ²·I term stops
+  regularizing, and solving against the near-singular Gaussian kernel produces wild weights
+  (measured: 0.8 normalized units of phantom displacement on two *identical* 1.6 k-point
+  clouds). Guards: a σ² annealing floor (`CPD_SIGMA2_FLOOR`), a min-norm `lstsq` solve, and a
+  blunder-scale σ² *init* (`CPD_SIGMA2_INIT` — pycpd's cloud-wide default walks self-similar
+  texture like engraving curls into wrong basins; the rigid stage has already aligned the
+  clouds, so the EM only needs to search drawing-error range). Landmarks are carried through
+  the fitted field as the Gaussian-weighted average of the registered points' *displacements*
+  — evaluating the CPD kernel at off-cloud points amplifies the same ill-conditioning (20 %
+  head-height error on a perfect registration). Also: pycpd's
+  `DeformableRegistration.transform_point_cloud(Y=...)` is simply wrong for new points (it
+  reuses the training kernel), so it is never used.
+
+- 2026-06-12 (Wave 4, M2) — Sketch-side MediaPipe gate is **agreement with CPD**, not the ink
+  heuristic the de-risk report sketched: measured on `data/line_art`, the report's junk case
+  la14 *passes* any reasonable span/on-ink check (a charcoal drawing has ink everywhere), so
+  ink checks only filter gross failures. MediaPipe's sketch mesh is used only when its worst
+  per-**group** mean distance to the CPD answer is ≤ 4 % head height — per-group because the
+  measurement layer consumes group means (measured: a mesh within 4 % *median* still differed
+  6 % on the jaw, which solvePnP turned into 20° of phantom pitch). Consequence: the fast path
+  fires only when both paths nearly agree, so which path answered cannot change the critique
+  (principle #7).
+
+- 2026-06-12 (Wave 4, M2) — Input contract + eval corpus: the sketch is a drawing **of the
+  head** (scope §3), so the CPD reference cloud is XDoG of the photo cropped to the expanded
+  landmark bbox, and M2 eval sketches are generated head-cropped (full-frame XDoG against a
+  face-cropped reference cloud mis-registers catastrophically — measured ~150 % head-height
+  errors). The eval corpus is *every* `data/photos` image that detects at the working size
+  and reads front-facing-ish (|yaw| ≤ 20°, scope §3) — no hand-picked list; this excludes the
+  genuinely 3/4-view photos (ph03/ph06/ph16) and the profile (ph13).
+
+- 2026-06-12 (Wave 4, M2) — Detection noise floors (M2-T2) calibrated on bias pairs
+  (MediaPipe-reference vs CPD-detected undistorted sketchification) and jitter pairs (two
+  random XDoG re-renders, both CPD): displacement 4.0 %hh, line angle 5°, pose 10°, area
+  75 %, ratio 35 % — each above the worst observed spurious magnitude. Honest consequence:
+  per-feature **scale** and canon-**proportion** findings are nearly muted in detect mode
+  (XDoG re-renders change stroke support enough that spread/ratio readings jitter wildly,
+  max 70.6 %area / 32.6 %ratio), and the M2-T1 menu therefore injects placements and mouth
+  tilts, not scale or lateral-nose ops (their measured recovery lands *below* the calibrated
+  floors — injecting errors the detector documentedly cannot resolve would only restate
+  this note). Placement, line-angle and pose findings carry the v1 detect-mode critique.
+
+- 2026-06-12 (Wave 4, M2) — M2-T1 scoring: recall is measured against the injected labels
+  only; for precision, findings whose (id, direction) the **coordinate-level pipeline**
+  (M0/M1-certified) also reports on the TRUE distorted landmarks are exempt from the
+  false-positive count. Blunder-sized injections have real secondary consequences (shifting
+  an eye vertically genuinely widens the interocular gap) — counting a true statement as a
+  hallucination would measure the labels, not the detector. The exemption set is computed
+  the same way for every case, never from any detection output (no self-judging).
+
+- 2026-06-12 (Wave 4, M2) — Cross-boundary touches for the mandated demo
+  (`artstockfish critique ref.jpg sketch.png`): added the `critique` subcommand to `cli.py`
+  (Wave 2 file; additive), a `[project.scripts]` console entry to `pyproject.toml`, and
+  `pycpd` to the `detect` extra. The M2 task prompt defines this demo command, so the wiring
+  is in-scope; flagged here rather than done silently (Ground Rule 2).
