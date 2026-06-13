@@ -51,7 +51,32 @@
       "Bash(python -m pytest tests/test_pose.py tests/test_m0_acceptance.py tests/test_stability.py tests/test_harness.py tests/test_evaluate.py -v)",
       "Bash(python -m artstockfish.cli demo-synthetic)",
       "Bash(python /tmp/sent.py)",
-      "Bash(python -m pytest)"
-    ]
+      "Bash(python -m pytest)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pip install mediapipe pycpd)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -c \"import pycpd, inspect; print\\(pycpd.__file__\\); import mediapipe; print\\(mediapipe.__version__\\); from pycpd import DeformableRegistration, RigidRegistration; print\\(inspect.signature\\(DeformableRegistration.transform_point_cloud\\)\\); print\\(inspect.signature\\(RigidRegistration.__init__\\)\\)\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\check_mapping.py)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\check_cpd.py 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\calibrate_floor.py 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\debug_identity.py 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\check_recovery.py 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\debug_stages.py 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\debug_identity.py)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\debug_identity.py ph12 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pip install -e . -q 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\artstockfish.exe --help)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\check_gate.py 2>$null)",
+      "PowerShell(Measure-Command { .\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\check_cpd.py 2>$null | Select-String \"cpd|mediapipe\" | Out-Host } | Select-Object -ExpandProperty TotalSeconds)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests\\\\test_detect.py -q -s -k \"not m2_t1 and not m2_t2\" 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests\\\\test_detect.py -q -k \"not m2_t1 and not m2_t2\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests\\\\test_detect.py -q -s -k \"m2_t2\" 2>$null; echo \"exit=$LASTEXITCODE\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests\\\\test_detect.py -q -s -k \"m2_t2\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe data\\\\_m2_scratch\\\\debug_ph08_jitter.py 2>$null)",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests\\\\test_detect.py -q -s -k \"m2_t1\" 2>$null; echo \"exit=$LASTEXITCODE\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests\\\\test_detect.py -q -s 2>$null; echo \"exit=$LASTEXITCODE\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest -q 2>$null; echo \"exit=$LASTEXITCODE\")",
+      "PowerShell(.\\\\.venv\\\\Scripts\\\\artstockfish.exe critique data\\\\demo_ref.jpg data\\\\demo_sketch.png --out data\\\\_m2_scratch\\\\demo_overlay.png 2>$null)",
+      "Read(//c/Users/danie/.claude/projects/c--Users-danie-OneDrive-Desktop-sketchfish/memory/**)"
+    ],
+    "defaultMode": "acceptEdits"
   }
 }

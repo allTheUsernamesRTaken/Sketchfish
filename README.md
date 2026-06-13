@@ -120,6 +120,34 @@ Gaussian-jittered runs at sigma = 0.5% head height and requires the modal `(find
 severity)` signature to appear at least 95% of the time. Run the gates with
 `pytest tests/test_harness.py tests/test_stability.py -q -s`.
 
+**Wave 4 — M2 real detection on sketches (done).** The coach now runs on real image files:
+`artstockfish critique ref.jpg sketch.png`. Following the de-risk report's path choice
+(`data/detection_report.md`, PATH 2), MediaPipe FaceLandmarker detects the **reference photo**
+(478-pt mesh downsampled to the frozen 68-pt convention), while the **sketch** is read by
+classical **CPD landmark transfer** (`detect/cpd_register.py`): XDoG edges of the head-cropped
+reference are registered onto the sketch's skeletonized strokes — similarity CPD, then a
+numerically-guarded deformable CPD (σ² floor/init + min-norm solve; vanilla pycpd diverges on
+well-matched clouds), then a per-feature local similarity refinement (with normal-only
+corrections for aperture-limited arcs like the jaw) — and the reference's landmarks are read
+off where they land. MediaPipe is only an opportunistic sketch fast-path, gated on per-group
+agreement with the CPD answer (the report's la14 junk-mesh case defeats ink-based checks —
+measured). Findings from detected landmarks pass a **calibrated detection noise floor**
+(M2-T2: two random XDoG re-renders of the same image → **zero** findings; floors 4 %hh /
+5° / 10° pose / 75 %area / 35 %ratio sit above the worst observed jitter, which mutes
+scale/proportion sensitivity in detect mode — see DECISIONS.md). The M2-T1 gate runs
+end-to-end on (photo, TPS-warped + XDoG-sketchified) pairs with labeled blunder-tier errors
+across every usable front-facing photo in `data/photos`: **detection precision 0.862,
+recall 0.893** (gates ≥ 0.85), vs **synthetic-only precision 0.750, recall 0.964, median
+magnitude error 0.010** on the same cases with the same floors (the synthetic "false
+positives" are true secondary consequences of blunder-sized injections; M1-magnitude
+headline numbers remain in `tests/test_harness.py`). `synth/sketchify.py` provides the
+validated XDoG recipe plus the landmark-driven TPS image warp that turns any annotated photo
+into a distorted eval sketch with free labels. Run the gates with
+`pytest tests/test_detect.py -q -s` (needs the gitignored `data/` corpus + model bundle;
+~10 min). Demo: `artstockfish critique data/demo_ref.jpg data/demo_sketch.png` reports
+exactly the injected error — "The mouth sits 6% of head height too low" — and saves the
+annotated overlay.
+
 **Wave 3B — M1.5 head-pose attribution (done).** `measure/pose.py` adds the pose layer that
 keeps a turned head from masquerading as a storm of local errors (spec §8 M1.5, principle #4).
 It carries a fixed canonical 3D 68-point model (an ellipsoidal-head depth profile over the

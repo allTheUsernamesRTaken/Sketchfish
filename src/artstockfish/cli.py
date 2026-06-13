@@ -1,12 +1,15 @@
 """Command-line entry point.
 
-M0 ships one command::
+Two commands::
 
     python -m artstockfish.cli demo-synthetic
+    artstockfish critique ref.jpg sketch.png   (M2; also via python -m artstockfish.cli)
 
-It runs the full pipeline on a hardcoded canonical face vs. a realistically-perturbed
-copy, prints the ranked critique and the accuracy score ("eval bar"), and saves the
-annotated overlay PNG (spec §8 M0 demo). Real-image input arrives in M2.
+``demo-synthetic`` runs the full pipeline on a hardcoded canonical face vs. a
+realistically-perturbed copy (spec §8 M0 demo). ``critique`` runs on real image
+files: the reference's landmarks come from MediaPipe, the sketch's from the gated
+fast-path or CPD transfer (spec §8 M2; see ``detect/``), and findings below the
+detection noise floor are suppressed (M2-T2).
 """
 
 from __future__ import annotations
@@ -43,6 +46,24 @@ def cmd_demo_synthetic(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_critique(args: argparse.Namespace) -> int:
+    from .detect import DetectionError, critique_images  # lazy: needs mediapipe/pycpd
+
+    try:
+        result, pair = critique_images(args.reference, args.sketch, overlay_path=args.out)
+    except DetectionError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print("Art Stockfish — critique")
+    print("=" * 60)
+    print(f"Reference: {args.reference} (MediaPipe)")
+    print(f"Sketch:    {args.sketch} ({pair.sketch_detector})")
+    _print_result(result)
+    if result.overlay_path:
+        print(f"\nAnnotated overlay saved to: {result.overlay_path}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="artstockfish", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -55,6 +76,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--out", default=_DEFAULT_OVERLAY, help="overlay PNG output path"
     )
     demo.set_defaults(func=cmd_demo_synthetic)
+
+    crit = sub.add_parser(
+        "critique",
+        help="critique a sketch of a reference image (real files, M2)",
+    )
+    crit.add_argument("reference", help="reference image (photo or clean digital image)")
+    crit.add_argument("sketch", help="the student's sketch of it (line art)")
+    crit.add_argument(
+        "--out", default="artstockfish_critique_overlay.png", help="overlay PNG output path"
+    )
+    crit.set_defaults(func=cmd_critique)
     return parser
 
 

@@ -17,9 +17,12 @@ dependencies = [
 
 [project.optional-dependencies]
 # Detection / geometry deps land in later waves (M2/M3); kept out of the core install.
-detect = ["mediapipe"]
+detect = ["mediapipe", "pycpd"]
 geom = ["shapely"]
 dev = ["pytest"]
+
+[project.scripts]
+artstockfish = "artstockfish.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

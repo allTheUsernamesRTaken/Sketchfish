@@ -7,8 +7,10 @@ Description-Content-Type: text/markdown
 Requires-Dist: numpy
 Requires-Dist: scipy
 Requires-Dist: opencv-python
+Requires-Dist: matplotlib
 Provides-Extra: detect
 Requires-Dist: mediapipe; extra == "detect"
+Requires-Dist: pycpd; extra == "detect"
 Provides-Extra: geom
 Requires-Dist: shapely; extra == "geom"
 Provides-Extra: dev
@@ -94,3 +96,66 @@ one `interocular_eye_width` / "too wide" finding at 15.0% ± 0.5% (MISTAKE tier)
 narrowing flips the sign, matched ratios yield zero findings, and a sanity test confirms the
 widening genuinely couples the two interocular ratios when left uncompensated. Run it with
 `pytest tests/test_measure_proportions.py -q`.
+
+**Wave 2 — wired-up M0 critique (done; M0 COMPLETE).** The measurement modules are now an
+end-to-end coach. `pipeline.py` runs one shared robust similarity alignment and feeds it to all
+three measurement modules, then `evaluate.py` ranks the findings coarse-to-fine (`Level` asc,
+then `score` desc — global proportion/pose before feature placement before local shape, spec
+§9.5/principle #5) and rolls their scores into the aggregate accuracy "eval bar"
+(`100·exp(-k·Σscore)`, `k=0.04`, which lands the realistic demo at **60/100**, inside the spec's
+55–70 target). `critique.py` turns each finding into one teacher-voiced sentence from the
+finding alone (template per axis with per-id action verbs; MISTAKE/BLUNDER append "Fix this
+before refining details." — spec §11; no hedging, one instruction per sentence), and
+`annotate.py` renders a matplotlib overlay (reference vs. aligned sketch, correction
+arrows/circles/line-pairs coloured by severity with `!?`/`?`/`??` badges; matplotlib is
+lazy-imported so the measure/evaluate/critique path never requires it). A key integration step,
+`pipeline.suppress_explained_angles`, removes angle findings that are merely *symptoms* of a
+placement already reported (e.g. a single eye shifted up tilts the eye line; reporting both
+double-counts one mistake) via a counterfactual — correct the flagged feature positions and
+re-measure; a tilt that collapses was explained, one that survives (a feature rotated in place,
+a jaw tangent) is kept (spec §2 principle #5, pitfall §12; see `DECISIONS.md`). The M0 gates in
+`tests/test_m0_acceptance.py` pass: a 5%-of-head-height left-eye shift yields **exactly one**
+`left_eye_vertical` / "too high" finding at 5.0% (MISTAKE) with the induced eye-line tilt
+explained away, and identical inputs yield zero findings with accuracy 100; `tests/test_evaluate.py`
+pins the ranking, the accuracy formula/calibration, and report assembly. The usefulness eyeball
+reads like a teacher, not a coordinate diff — the demo's top three are *"the midface is 23% too
+tall — shorten the midface"* (GLOBAL), *"the left eye sits 6% too high"*, *"the right eye is
+drawn 21% too large"*, surfacing the structural error before the feature fixes. Demo:
+`python -m artstockfish.cli demo-synthetic` prints the ranked critique + accuracy and saves the
+annotated overlay PNG. Run the gates with `pytest tests/test_m0_acceptance.py tests/test_evaluate.py -q`.
+
+**Wave 3A — M1 synthetic distortion harness (done).** `synth/distort.py` now provides labeled,
+parameterized landmark distortions for the M1 conscience test: `shift_feature` translates a
+semantic group in the reference face frame and labels the expected placement finding,
+`scale_feature` scales a feature about its centroid and labels the expected `%area` scale
+finding, `rotate_line` rotates configured line features and labels angle findings, `tps_bulge`
+adds a smooth local contour-era bulge label for later M3 tests, and `compose` chains operations
+while preserving their ground-truth labels. `tests/test_harness.py` runs 200 deterministic
+single- and multi-error cases through the read-only M0 pipeline and scores every surfaced
+finding against those labels: **precision 0.989**, **recall 1.000**, **median magnitude error
+0.000** (fractional error; gate is <=0.200). `tests/test_stability.py` covers M1-T4 with 20
+Gaussian-jittered runs at sigma = 0.5% head height and requires the modal `(finding id,
+severity)` signature to appear at least 95% of the time. Run the gates with
+`pytest tests/test_harness.py tests/test_stability.py -q -s`.
+
+**Wave 3B — M1.5 head-pose attribution (done).** `measure/pose.py` adds the pose layer that
+keeps a turned head from masquerading as a storm of local errors (spec §8 M1.5, principle #4).
+It carries a fixed canonical 3D 68-point model (an ellipsoidal-head depth profile over the
+project's canonical face — attribution scaffolding, never a fit to the sketch) and estimates
+head pose for the reference and the sketch *independently* with `cv2.solvePnP`. The solve is
+robust and deterministic: a global `SQPNP` initial solve picks the upright, camera-facing branch
+(plain iterative PnP flips a near-frontal face on the planar two-fold ambiguity), then a *trimmed*
+re-solve drops the worst-fitting 25% of points so a single mislocated feature can't drag the
+global pose — the same robustness logic `robust_align` applies in 2D (principle #3). When the
+heads' yaw/pitch differ past the pose noise floor (`POSE_DIFF_OK_MAX = 4°`; in-plane roll is page
+tilt and stays absorbed by the similarity alignment, principle #2), the pipeline's single
+pose-stage hook emits **one** `Level.GLOBAL` pose finding ("the head is rotated N° further right
+than the reference") and **reprojects the reference at the student's pose** — identity-preserving,
+so a perfect-but-rotated student reprojects exactly onto the sketch — and runs every downstream
+residual against that reprojection. Below threshold the stage is a no-op and the M0 path is byte
+-for-byte unchanged. The gates in `tests/test_pose.py` pass: a frontal reference vs a +10°-yaw
+sketch yields **exactly one** GLOBAL pose finding and **zero** placement findings (M1.5-T1, with
+the reprojection landing on the sketch to <1px), and a +10° yaw *plus* a left eye shifted up 5%
+surfaces **both** the pose finding (10.0°) **and** `left_eye_vertical` at **5.0% ± 1%** after pose
+conditioning (M1.5-T2, measured 5.01%), ranked coarse-to-fine with pose first. Run the gates with
+`pytest tests/test_pose.py -q`.
