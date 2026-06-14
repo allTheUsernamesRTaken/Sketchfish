@@ -75,7 +75,19 @@
       "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest tests\\\\test_detect.py -q -s 2>$null; echo \"exit=$LASTEXITCODE\")",
       "PowerShell(.\\\\.venv\\\\Scripts\\\\python.exe -m pytest -q 2>$null; echo \"exit=$LASTEXITCODE\")",
       "PowerShell(.\\\\.venv\\\\Scripts\\\\artstockfish.exe critique data\\\\demo_ref.jpg data\\\\demo_sketch.png --out data\\\\_m2_scratch\\\\demo_overlay.png 2>$null)",
-      "Read(//c/Users/danie/.claude/projects/c--Users-danie-OneDrive-Desktop-sketchfish/memory/**)"
+      "Read(//c/Users/danie/.claude/projects/c--Users-danie-OneDrive-Desktop-sketchfish/memory/**)",
+      "Bash(.venv/Scripts/python.exe -m pip install -q fastapi svgwrite python-multipart uvicorn httpx)",
+      "Bash(.venv/Scripts/python.exe -c ' *)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/test_api.py -q)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ --ignore=tests/test_detect.py -q)",
+      "Bash(.venv/Scripts/python.exe -m artstockfish.cli --help)",
+      "Bash(.venv/Scripts/python.exe -m artstockfish.cli web --help)",
+      "Bash(.venv/Scripts/python.exe -m artstockfish.cli demo-synthetic --out /tmp/o.png)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/test_detect.py --collect-only -q)",
+      "Bash(which inkscape *)",
+      "Bash(timeout 120 .venv/Scripts/python.exe -m pip install -q cairosvg)",
+      "Bash(.venv/Scripts/python.exe -m pip uninstall -y -q cairosvg cairocffi cssselect2 tinycss2 defusedxml webencodings)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ --ignore=tests/test_detect.py)"
     ],
     "defaultMode": "acceptEdits"
   }

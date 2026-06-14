@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Art Stockfish — drawing coach</title>
+<style>
+  :root {
+    --ink: #212529; --muted: #868e96; --line: #dee2e6; --bg: #f8f9fa;
+    --inaccuracy: #e1ad01; --mistake: #e8590c; --blunder: #c92a2a; --ref: #1c7ed6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 15px/1.5 system-ui, sans-serif; color: var(--ink); background: var(--bg);
+  }
+  header { padding: 18px 24px; border-bottom: 1px solid var(--line); background: #fff; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: 360px 1fr; gap: 0; min-height: calc(100vh - 70px); }
+  .panel { padding: 20px 24px; border-right: 1px solid var(--line); background: #fff; }
+  .stage { padding: 20px; display: flex; align-items: flex-start; justify-content: center; }
+  .stage svg { max-width: 100%; height: auto; border: 1px solid var(--line); background: #fff; border-radius: 6px; }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin: 0 0 16px; }
+  legend { font-weight: 600; padding: 0 6px; }
+  label.file { display: block; margin: 8px 0; font-size: 13px; }
+  label.file span { display: block; color: var(--muted); margin-bottom: 4px; }
+  input[type=file] { width: 100%; font-size: 13px; }
+  button {
+    width: 100%; padding: 10px; font-size: 15px; font-weight: 600; color: #fff;
+    background: var(--ref); border: none; border-radius: 6px; cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .bar { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; margin: 6px 0 2px; }
+  .bar > div { height: 100%; background: linear-gradient(90deg, var(--blunder), var(--inaccuracy), #2f9e44); }
+  .score-row { display: flex; justify-content: space-between; align-items: baseline; }
+  .score-row b { font-size: 22px; }
+  ul.findings { list-style: none; margin: 12px 0 0; padding: 0; }
+  ul.findings li {
+    border: 1px solid var(--line); border-left-width: 4px; border-radius: 6px;
+    padding: 8px 10px; margin-bottom: 8px; cursor: pointer; transition: background .12s;
+  }
+  ul.findings li:hover { background: var(--bg); }
+  ul.findings li.active { background: #e7f5ff; border-color: var(--ref); }
+  ul.findings li[data-severity=inaccuracy] { border-left-color: var(--inaccuracy); }
+  ul.findings li[data-severity=mistake] { border-left-color: var(--mistake); }
+  ul.findings li[data-severity=blunder] { border-left-color: var(--blunder); }
+  .badge { font-weight: 700; font-family: ui-monospace, monospace; margin-right: 6px; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .empty, .err { color: var(--muted); padding: 12px 0; }
+  .err { color: var(--blunder); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Art Stockfish</h1>
+  <p>Upload a reference image and a sketch of it — get a measured, ranked critique.</p>
+</header>
+<main>
+  <section class="panel">
+    <form id="form">
+      <fieldset>
+        <legend>Images</legend>
+        <label class="file"><span>Reference (photo / clean image)</span>
+          <input type="file" id="reference" accept="image/*" required /></label>
+        <label class="file"><span>Sketch (your drawing of it)</span>
+          <input type="file" id="sketch" accept="image/*" required /></label>
+      </fieldset>
+      <button type="submit" id="go">Critique</button>
+    </form>
+
+    <div id="summary" hidden>
+      <div class="score-row" style="margin-top:18px;">
+        <span>Accuracy</span><b id="score">—</b>
+      </div>
+      <div class="bar"><div id="scorebar" style="width:0%"></div></div>
+      <div class="meta" id="detector"></div>
+      <ul class="findings" id="findings"></ul>
+    </div>
+    <div id="status" class="empty">No critique yet.</div>
+  </section>
+
+  <section class="stage" id="stage"></section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function clearSelection() {
+  const svg = $("stage").querySelector("svg");
+  if (svg) {
+    svg.classList.remove("as-has-selection");
+    svg.querySelectorAll(".as-selected").forEach((el) => el.classList.remove("as-selected"));
+  }
+  $("findings").querySelectorAll("li.active").forEach((li) => li.classList.remove("active"));
+}
+
+function selectFinding(id, li) {
+  const svg = $("stage").querySelector("svg");
+  if (!svg) return;
+  const already = li.classList.contains("active");
+  clearSelection();
+  if (already) return;                       // second click deselects
+  const group = svg.querySelector(`[data-finding-id="${CSS.escape(id)}"]`);
+  if (group) {
+    svg.classList.add("as-has-selection");
+    group.classList.add("as-selected");
+  }
+  li.classList.add("active");
+}
+
+function renderFindings(report) {
+  const list = $("findings");
+  list.innerHTML = "";
+  if (!report.findings.length) {
+    list.innerHTML = '<li class="empty" style="cursor:default">No findings above the noise floor — this sketch matches the reference.</li>';
+    return;
+  }
+  report.findings.forEach((f) => {
+    const li = document.createElement("li");
+    li.dataset.severity = f.severity;
+    li.innerHTML =
+      `<span class="badge">${f.badge}</span>${f.sentence}` +
+      `<div class="meta">${f.level_name.toLowerCase()} · ${f.feature} · ` +
+      `${f.magnitude.toFixed(0)}${f.units === "deg" ? "°" : "%"}</div>`;
+    li.addEventListener("click", () => selectFinding(f.id, li));
+    list.appendChild(li);
+  });
+}
+
+async function critique(evt) {
+  evt.preventDefault();
+  const fd = new FormData();
+  fd.append("reference", $("reference").files[0]);
+  fd.append("sketch", $("sketch").files[0]);
+  $("go").disabled = true;
+  $("status").className = "empty";
+  $("status").textContent = "Analyzing…";
+  $("summary").hidden = true;
+  try {
+    const resp = await fetch("/critique", { method: "POST", body: fd });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || `request failed (${resp.status})`);
+    }
+    const data = await resp.json();
+    $("stage").innerHTML = data.svg;
+    const report = data.report;
+    $("score").textContent = report.accuracy_score.toFixed(0) + " / 100";
+    $("scorebar").style.width = report.accuracy_score.toFixed(1) + "%";
+    $("detector").textContent = "sketch landmarks: " + data.detector;
+    renderFindings(report);
+    $("summary").hidden = false;
+    $("status").textContent = "";
+    $("status").className = "";
+  } catch (e) {
+    $("status").className = "err";
+    $("status").textContent = "Error: " + e.message;
+  } finally {
+    $("go").disabled = false;
+  }
+}
+
+$("form").addEventListener("submit", critique);
+</script>
+</body>
+</html>

@@ -153,3 +153,24 @@ Dated, one-line departures from `ART_STOCKFISH_SPEC.md` with the reason
   (Wave 2 file; additive), a `[project.scripts]` console entry to `pyproject.toml`, and
   `pycpd` to the `detect` extra. The M2 task prompt defines this demo command, so the wiring
   is in-scope; flagged here rather than done silently (Ground Rule 2).
+
+- 2026-06-13 (Wave 5B, M4) — `annotate.py` SVG overlay added **alongside** the matplotlib
+  `render_overlay`, not as a replacement, even though the M4 prompt says "upgrade annotate.py
+  to SVG". `pipeline.py` and `detect/__init__.py` (both read-only for this wave) still call
+  `render_overlay` for the M0/M2 debug PNG; removing it would break them. New `render_svg`/
+  `save_svg` are the M4 product renderer; the PNG path is untouched. (Ground Rule 2.)
+
+- 2026-06-13 (Wave 5B, M4) — `tests/test_api.py` overrides the server's `get_detector`
+  dependency with a deterministic stub returning known landmarks, rather than running the M2
+  detection stack. The M4 surface under test is multipart handling + `Report` JSON
+  serialization + the SVG overlay; detection accuracy has its own gates (`tests/test_detect.py`)
+  and heavy optional deps. The request still POSTs two real PNG fixtures, so upload/decode/
+  encode/SVG render run end to end — only the ML step is swapped (standard FastAPI
+  `app.dependency_overrides` pattern). Not a weakened gate: it isolates the unit it owns.
+
+- 2026-06-13 (Wave 5B, M4) — Web deps beyond the prompt's "fastapi+svgwrite": added
+  `python-multipart` (FastAPI requires it to parse file uploads), `uvicorn` (the mandated
+  `uvicorn ...` / `artstockfish web` run command), and `httpx` (FastAPI `TestClient`) to a
+  new `web` optional-dependencies group (+ `httpx` in `dev`). `pyproject.toml` is a Wave 0
+  file; the edit is an additive new section. A `web` subcommand was added to `cli.py`
+  (additive, per the prompt's "cli web command" ownership).

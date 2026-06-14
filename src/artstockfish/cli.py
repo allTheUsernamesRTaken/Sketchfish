@@ -46,6 +46,21 @@ def cmd_demo_synthetic(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_web(args: argparse.Namespace) -> int:
+    """Launch the FastAPI product surface (spec §8 M4)."""
+    try:
+        import uvicorn
+    except ImportError:
+        print(
+            "error: the web UI needs the 'web' extra — pip install -e .[web]",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"Art Stockfish web UI → http://{args.host}:{args.port}")
+    uvicorn.run("artstockfish.server:app", host=args.host, port=args.port, reload=args.reload)
+    return 0
+
+
 def cmd_critique(args: argparse.Namespace) -> int:
     from .detect import DetectionError, critique_images  # lazy: needs mediapipe/pycpd
 
@@ -87,6 +102,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--out", default="artstockfish_critique_overlay.png", help="overlay PNG output path"
     )
     crit.set_defaults(func=cmd_critique)
+
+    web = sub.add_parser(
+        "web",
+        help="serve the web UI: POST /critique (two images) → Report JSON + SVG overlay",
+    )
+    web.add_argument("--host", default="127.0.0.1", help="bind host")
+    web.add_argument("--port", type=int, default=8000, help="bind port")
+    web.add_argument("--reload", action="store_true", help="auto-reload (development)")
+    web.set_defaults(func=cmd_web)
     return parser
 
 
