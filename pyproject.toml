@@ -21,6 +21,9 @@ detect = ["mediapipe", "pycpd"]
 geom = ["shapely"]
 # M4 product surface (spec §8 M4): SVG overlay + FastAPI web app + static page.
 web = ["fastapi", "svgwrite", "python-multipart", "uvicorn"]
+# M5 benchmark (spec §8 M5): the frontier-VLM baselines. Either SDK is enough — pick
+# the provider you have a key for (python -m benchmark.run --provider openai|anthropic).
+bench = ["openai", "anthropic"]
 dev = ["pytest", "httpx"]
 
 [project.scripts]

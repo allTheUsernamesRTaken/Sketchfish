@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-06-14T04:10:17",
+  "seed": 20260613,
+  "vlm_model": null,
+  "our_system": {
+    "precision": 0.9887640449438203,
+    "recall": 1.0,
+    "localization": 1.0,
+    "median_magnitude_error": 0.0003112884236328192,
+    "consistency": 1.0,
+    "n_cases": 50,
+    "n_repeats": 3,
+    "total_expected": 88,
+    "total_reported": 89.0,
+    "total_true_positive": 88.0
+  },
+  "vlm": null
+}

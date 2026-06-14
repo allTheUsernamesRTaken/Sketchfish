@@ -26,3 +26,17 @@ htmlcov/
 Thumbs.db
 
 .claude/
+
+# Secrets — API keys for the benchmark VLM baselines. NEVER commit. Use .env.example
+# as the template; the real .env stays local.
+.env
+.env.*
+!.env.example
+
+# M5 benchmark: cached VLM responses (can be large; keyed by rendered-image bytes).
+# The committed deliverable is benchmark/results/benchmark_results.json + the README table.
+benchmark/_vlm_cache/
+# Local critique/overlay + benchmark render artifacts written to the repo root.
+artstockfish_*overlay.png
+artstockfish_*overlay.svg
+artstockfish_bench_*.png

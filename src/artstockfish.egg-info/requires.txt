@@ -3,12 +3,23 @@ scipy
 opencv-python
 matplotlib
 
+[bench]
+openai
+anthropic
+
 [detect]
 mediapipe
 pycpd
 
 [dev]
 pytest
+httpx
 
 [geom]
 shapely
+
+[web]
+fastapi
+svgwrite
+python-multipart
+uvicorn

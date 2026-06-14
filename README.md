@@ -17,6 +17,37 @@ big fan of fish
 
 </pre>
 
+## Benchmark — Art Stockfish vs a frontier VLM (M5)
+
+The headline claim: a deterministic, geometry-grounded critique beats a vision-language
+model at *measured, localized, reproducible* feedback (spec §1). We generate 50
+`(reference, distorted-sketch, ground-truth-findings)` triples with the labeled M1
+distortion harness, run **our pipeline** on the landmark pairs and a **frontier VLM** on
+rendered images of the same faces (a strong fixed prompt asking for critiques in our JSON
+schema), and score both identically against ground truth.
+
+<!-- BENCHMARK:START -->
+Protocol: **50 triples** (reference, distorted sketch, ground-truth findings) × **3 repeats**. Same labeled errors, same scoring for both systems.
+
+| Metric | Art Stockfish (ours) | Frontier VLM (`—`) | |
+|---|---|---|---|
+| Finding precision (id+direction) | 98.9% | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | higher is better |
+| Finding recall | 100.0% | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | higher is better |
+| Localization (right feature) | 100.0% | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | higher is better |
+| Magnitude error | 0.0% (median |err|) | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | lower is better |
+| Run-to-run consistency (Jaccard, 3×) | 1.000 | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | 1.0 = identical every run |
+<!-- BENCHMARK:END -->
+
+Reproduce:
+- **Our column only** (no API key): `python -m benchmark.run --provider none`.
+- **Frontier-VLM column**: `pip install -e .[bench]`, then put your key in a repo-root
+  `.env` (copy `.env.example` — it's gitignored, safe to push) and run
+  `python -m benchmark.run --provider openai` (default model `gpt-5.5`) or
+  `--provider anthropic` (`claude-opus-4-8`). Pass `--model` to pick a cheaper model
+  (e.g. `--model gpt-5.4-mini`). Responses are cached on disk, so it's a one-time spend.
+
+Raw numbers land in `benchmark/results/benchmark_results.json`.
+
 ## Progress
 
 **Wave 0 — the frozen contract + alignment spine (done).** The project's data
@@ -207,3 +238,33 @@ finding** with matching ids; missing an image is rejected `422`; `GET /` serves 
 gate with `pytest tests/test_api.py -q`. Serve it with `artstockfish web` (or
 `uvicorn artstockfish.server:app --reload`) → http://127.0.0.1:8000; the demo overlay is saved at
 `artstockfish_demo_overlay.svg`.
+
+**Wave 6 — M5 benchmark vs a frontier VLM + guarded verbalizer (done).** The new `benchmark/`
+package implements the headline comparison (spec §8 M5). `dataset.py` builds 50 deterministic
+`(reference, distorted-sketch, ground-truth)` triples with the labeled M1 harness; `render.py`
+draws each 68-point face as a clean line-drawing PNG in a shared frame; `vlm.py` sends the pair
+to a **frontier VLM** — **OpenAI** (`gpt-5.5`, Chat Completions) or **Anthropic** (`claude-opus-4-8`),
+both vision + structured output constrained to our closed finding vocabulary, responses cached on
+disk — with a strong fixed prompt asking for critiques in our JSON schema; `scoring.py` scores
+**both systems identically** against ground
+truth — finding precision/recall, localization, magnitude accuracy, and run-to-run consistency
+(mean pairwise Jaccard over the 3 repeats). `run.py` (`python -m benchmark.run`) orchestrates
+both, writes `benchmark/results/benchmark_results.json`, and splices the comparison table into
+this README's **Benchmark** section above. Our deterministic pipeline scores **precision 0.989,
+recall 1.000, localization 1.000, median magnitude error 0.0%, consistency 1.000** over the 50×3
+runs — reproducible with `python -m benchmark.run --provider none` (no API key). The VLM column
+is populated by `python -m benchmark.run --provider openai` (or `--provider anthropic`) after
+`pip install -e .[bench]` and dropping your key in a gitignored `.env` (copy `.env.example`); it
+is left pending rather than fabricated until that real run.
+
+Also new: an **optional LLM verbalizer** in `critique.py` (`verbalize_report`,
+`make_anthropic_verbalizer`) that rewrites the template sentences in warmer teacher voice. The
+LLM receives **only** the findings JSON (no images), and a hard **code-enforced guard**
+(`verbalizer_violation`, spec §2 principle #1) rejects any rewrite that mentions a feature,
+number, or error axis the finding doesn't support — falling back to the deterministic template
+per sentence on any violation, so a hallucination can never reach the user. The existing
+templates are untouched. `tests/test_verbalizer_guard.py` pins the contract: a hallucinated
+sentence (invented feature + invented number) asserts fallback to the template, a faithful
+paraphrase passes through, off-axis/invented-number rewrites fall back, granular per-sentence
+fallback works, LLM errors fall back wholesale, and every shipped template passes its own guard.
+Run the gates with `pytest tests/test_verbalizer_guard.py tests/test_benchmark.py -q`.
