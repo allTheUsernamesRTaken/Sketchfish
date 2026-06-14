@@ -174,3 +174,80 @@ Dated, one-line departures from `ART_STOCKFISH_SPEC.md` with the reason
   new `web` optional-dependencies group (+ `httpx` in `dev`). `pyproject.toml` is a Wave 0
   file; the edit is an additive new section. A `web` subcommand was added to `cli.py`
   (additive, per the prompt's "cli web command" ownership).
+
+- 2026-06-14 (Wave 6, M5) — `benchmark/` lives at the **repo root**, not under
+  `src/artstockfish/`: it is evaluation tooling, not part of the shipped library, and the spec
+  layout (§5) has no benchmark package. It depends only on the light core plus the optional
+  `anthropic` SDK (lazy-imported), so the library install is unaffected. Run via
+  `python -m benchmark.run` (repo root is on `sys.path` for `-m`). New `tests/conftest.py`
+  inserts the repo root on `sys.path` so `tests/test_benchmark.py` can `import benchmark`
+  (the installed editable package only exposes `src/`). Both are additive new files; no
+  parallel agent owns them (Wave 6 is serial). A `# --- benchmark ---` section was appended to
+  `config.py` per the standard append-only convention (Ground Rule 4).
+
+- 2026-06-14 (Wave 6, M5) — Benchmark dataset reuses the **M1 op menu** (single eye shift /
+  brow scale / line rotation) with **no whole-page transform** injected, so ground truth equals
+  the injected labels exactly. Page tilt/scale is precisely what the similarity alignment is
+  meant to absorb (principle #2); injecting it would add un-scored noise to the comparison
+  rather than test error detection. This menu is the one the M1 harness proves keeps
+  secondary-consequence false positives negligible (~0.99 precision), so our column is honest,
+  not tuned.
+
+- 2026-06-14 (Wave 6, M5) — Scoring is computed **raw** (no false-positive exemption like the
+  M2 `tests/test_detect.py` "true secondary consequence" carve-out). The headline claim is
+  strongest when computed the simplest, most defensible way; a real secondary finding our
+  pipeline surfaces is counted against our precision (conservative *against* us, the honest
+  direction — Ground Rule 5). Both systems are scored identically: exact `(id, direction)`
+  match for precision/recall, id-match (any direction) for localization, median fractional
+  magnitude error, and mean pairwise Jaccard of per-case key sets across the 3 repeats for
+  consistency.
+
+- 2026-06-14 (Wave 6, M5) — The VLM baseline is given the **closed finding vocabulary** (every
+  legal `id`/`direction`/units, derived from the frozen config in `benchmark/vocab.py`) and its
+  output is constrained to it via structured-output **enums**. The comparison is therefore about
+  *which findings the model picks and how well it measures them*, never about whether it guessed
+  our id strings or emitted valid JSON — a fluent-but-unmappable critique would otherwise tank
+  the baseline's recall unfairly. The prompt also tells it to ignore global position/scale/page
+  rotation (the same similarity-invariant error class our pipeline measures) and to report
+  structural errors first, so both systems answer the same question.
+
+- 2026-06-14 (Wave 6, M5) — Verbalizer guard (principle #1, enforced in `critique.py`, not
+  trusted to the model): the LLM receives ONLY the findings JSON (no images) and rewrites each
+  template sentence; every result is validated per-finding and, on any violation, the
+  deterministic template is used (granular per-sentence fallback; whole-batch fallback on LLM
+  error or count mismatch). The guard forbids any sentence from naming a **feature**, **number**,
+  or **error axis** (vertical / size / width / extent / rotation) the finding doesn't support.
+  Two things are intentionally *not* lexically gated: the within-axis pole (the corrective verb
+  legitimately names the opposite pole — "too high → lower it"), and left↔right side words (same
+  corrective-phrasing entanglement). The faithful-paraphrase contract that matters — no invented
+  feature, no invented/changed magnitude, no off-axis claim — is fully enforced; a regression
+  test asserts every shipped template passes its own guard.
+
+- 2026-06-14 (Wave 6, M5) — The published comparison table's VLM column is left **pending a real
+  API run**: this environment has no API key and no SDK installed, and 50×3 frontier-VLM calls
+  send rendered data to an external service at real cost. Per Ground Rule 5, VLM numbers are NOT
+  fabricated; our column is real and deterministic. The benchmark runs end-to-end against an
+  offline `StubVLM` (proving render→client→parse→score→table and the consistency metric in
+  `tests/test_benchmark.py`); the identical code path hits the real API once a provider SDK + key
+  are present (`python -m benchmark.run`, responses cached on disk).
+
+- 2026-06-14 (Wave 6, M5) — Added an **OpenAI** frontier-VLM baseline alongside Anthropic (at the
+  user's request — they have an OpenAI key). `benchmark/vlm.py` was refactored so both providers
+  share a `_CachedVLM` base (prompt, closed vocabulary, schema, parse, on-disk cache); only the
+  API call differs. Model id was **researched live** (2026-06-14) rather than recalled: `gpt-4o`
+  is superseded; the current vision family is GPT-5.x, so the default is `gpt-5.5` (`--model`
+  overrides, e.g. `gpt-5.4-mini` for a cheaper run). GPT-5.x are reasoning models, so the OpenAI
+  client uses Chat Completions with `max_completion_tokens` (not `max_tokens`; generous headroom
+  for reasoning tokens — `BENCH_OPENAI_MAX_TOKENS = 16000`) and leaves `temperature` at default
+  (non-default is rejected, and the default gives the run-to-run variance the consistency metric
+  measures). Output is constrained with strict `json_schema` — the same closed vocabulary. The
+  default `--provider` is now `openai`. `openai`+`anthropic` added as a new `bench` extra in
+  `pyproject.toml` (additive section, mirroring the M4 `web` extra precedent).
+
+- 2026-06-14 (Wave 6, M5) — API keys: the runner loads a gitignored repo-root `.env`
+  (`benchmark/_env.py`, a tiny dependency-free `KEY=value` parser; real exported env vars win via
+  `setdefault`). `.env` / `.env.*` are gitignored (with `!.env.example` kept), and a committed
+  `.env.example` documents `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`. This keeps the "easy to set,
+  safe to push to GitHub" property the user asked for — no secret ever reaches the repo, and no
+  third-party dotenv dependency is added. A missing key fails fast with a message pointing at
+  `.env.example` and the `--provider none` escape hatch.

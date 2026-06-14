@@ -496,3 +496,30 @@ NEGSPACE_AREA_OK_MAX = AREA_OK_MAX # spec §6 area floor: <8% OK
 NEGSPACE_ASPECT_OK_MAX = 8.0       # %aspect deviation floor, area-tier analogue
 NEGSPACE_ASPECT_TIERS = (8.0, 15.0, 30.0)
 NEGSPACE_WEIGHT = 0.5              # background-shape cue, below face features
+
+# --- benchmark ---
+# M5 benchmark vs a frontier VLM (spec §8 M5). The protocol generates a fixed set
+# of (reference, distorted-sketch, ground-truth-findings) triples with a labeled
+# distortion harness, renders both faces to images, and scores our deterministic
+# pipeline against a VLM that sees only the images. Everything below is fixed so
+# the headline comparison table is reproducible (principle #7).
+BENCH_SEED = 20260613              # deterministic triple generation
+BENCH_N_CASES = 50                 # spec §8 M5: "50 ... triples"
+BENCH_REPEATS = 3                  # spec §8 M5: "3 repeats" for run-to-run consistency
+BENCH_VLM_MODEL = "claude-opus-4-8"  # Anthropic frontier-VLM baseline (claude-api default)
+BENCH_VLM_MAX_TOKENS = 4096        # plenty for a JSON finding list; we stream the call
+# OpenAI frontier-VLM baseline. Researched 2026-06-14 against the live OpenAI model
+# list: gpt-4o is superseded; the current vision models are the GPT-5.x family
+# (gpt-5.5 flagship, gpt-5.4 / -mini / -nano). gpt-5.5 is the frontier baseline; pass
+# --model to downgrade (e.g. gpt-5.4-mini) for cheaper runs. GPT-5.x are reasoning
+# models: the Chat Completions param is `max_completion_tokens` (reasoning tokens count
+# against it, so leave generous headroom) and temperature must stay default.
+BENCH_OPENAI_MODEL = "gpt-5.5"
+BENCH_OPENAI_MAX_TOKENS = 16000    # reasoning + the small JSON answer; avoids truncation
+# Rendering: both the reference and the sketch are drawn as clean 68-point line
+# faces on the SAME fixed canvas/frame, so a local error (an eye too high) is
+# visible while a uniform shift/scale is not — mirroring the similarity-invariance
+# our own pipeline enforces (principle #2). Square canvas keeps aspect neutral.
+BENCH_RENDER_PX = 768              # output image side, pixels
+BENCH_RENDER_MARGIN = 0.18         # padding around the reference bbox, fraction of bbox span
+BENCH_RENDER_LINEWIDTH = 2.4       # stroke width for the rendered face lines

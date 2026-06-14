@@ -10,6 +10,7 @@ src/artstockfish/evaluate.py
 src/artstockfish/frame.py
 src/artstockfish/pipeline.py
 src/artstockfish/schema.py
+src/artstockfish/server.py
 src/artstockfish.egg-info/PKG-INFO
 src/artstockfish.egg-info/SOURCES.txt
 src/artstockfish.egg-info/dependency_links.txt
@@ -21,13 +22,19 @@ src/artstockfish/detect/cpd_register.py
 src/artstockfish/detect/mediapipe_face.py
 src/artstockfish/measure/__init__.py
 src/artstockfish/measure/angles.py
+src/artstockfish/measure/contour.py
 src/artstockfish/measure/landmarks.py
+src/artstockfish/measure/negspace.py
 src/artstockfish/measure/pose.py
 src/artstockfish/measure/proportions.py
 src/artstockfish/synth/__init__.py
 src/artstockfish/synth/distort.py
 src/artstockfish/synth/sketchify.py
 tests/test_align.py
+tests/test_api.py
+tests/test_benchmark.py
+tests/test_contour.py
+tests/test_detect.py
 tests/test_evaluate.py
 tests/test_harness.py
 tests/test_m0_acceptance.py
@@ -36,3 +43,4 @@ tests/test_measure_landmarks.py
 tests/test_measure_proportions.py
 tests/test_pose.py
 tests/test_stability.py
+tests/test_verbalizer_guard.py
