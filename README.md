@@ -169,3 +169,41 @@ the reprojection landing on the sketch to <1px), and a +10° yaw *plus* a left e
 surfaces **both** the pose finding (10.0°) **and** `left_eye_vertical` at **5.0% ± 1%** after pose
 conditioning (M1.5-T2, measured 5.01%), ranked coarse-to-fine with pose first. Run the gates with
 `pytest tests/test_pose.py -q`.
+
+**Wave 5A - M3 contour and negative-space geometry (done).** `measure/contour.py` now measures
+corresponded jaw / lower face-oval contour segments after robust similarity alignment: each
+segment is sampled by normalized arc length, signed perpendicular offsets are oriented outward
+from the face, smoothed, and reduced to maximal same-sign runs that surface `Level.SHAPE`
+findings like `jaw_contour_bulge` / "bulges outward" or "caves in"; the same module compares
+curvature profiles for "too angular" / "too rounded" notes. Every contour finding carries
+render-ready evidence (`ref_samples`, `sketch_samples`, normals, signed-distance profiles,
+run endpoints, peak arc, anchor labels, and run subsegments) for the M4 SVG layer.
+`measure/negspace.py` adds the aligned-mask API for M3 negative space: flood-fill closed
+background regions, correspond them by centroid, then compare area and aspect ratio with
+region contours, centroids, and boxes in `Finding.evidence`. The contour acceptance gate in
+`tests/test_contour.py` runs 100 deterministic TPS-style jaw bulges with randomized
+midpoint/sign and detected the correct sign with peak midpoint within 10% arc length in
+**100/100 cases (1.000)**. Run it with `pytest tests/test_contour.py -q -s`.
+
+**Wave 5B — M4 product surface: SVG overlay + web app (done).** `annotate.py` now renders the
+critique as an interactive **SVG** (`render_svg` / `save_svg`) alongside the existing matplotlib
+debug PNG (`render_overlay`, kept for the read-only pipeline/detection callers). The student's
+sketch is the base layer over a faint reference guide, and **every surfaced finding becomes
+exactly one** `<g class="as-annotation" data-finding-id=…>` carrying axis-appropriate geometry:
+placement findings draw a dashed green **ghost outline** of the corrected feature plus a
+**drawn→correct arrow**; scale findings overlay the ghost vs. the drawn feature; angle findings
+draw a reference/drawn line-pair; proportion findings ring the landmarks their ratio reads; and
+contour/curvature findings render a signed-deviation **heatmap** (blue caves in ↔ red bulges
+out) from `Finding.evidence` — each pinned with a chess-style severity **badge** (`!?`/`?`/`??`).
+`server.py` is a **FastAPI** app: `POST /critique` takes two image uploads, runs them through the
+M2 detection stack → the unchanged critique pipeline → the SVG renderer, and returns
+`{"report": <Report JSON>, "svg": …, "detector": …}`; `GET /` serves a single static page
+(`web/index.html`, no framework) that uploads the pair, shows the accuracy "eval bar" and the
+ranked findings, and **highlights a finding's annotation when its list row is clicked** (toggling
+`as-selected` on the matching SVG group). The `tests/test_api.py` gate passes: posting two PNG
+fixtures returns **200** with a valid `Report` JSON (ranked coarse-to-fine, every finding above
+OK with a teacher sentence) and a well-formed SVG containing **exactly one annotation element per
+finding** with matching ids; missing an image is rejected `422`; `GET /` serves the page. Run the
+gate with `pytest tests/test_api.py -q`. Serve it with `artstockfish web` (or
+`uvicorn artstockfish.server:app --reload`) → http://127.0.0.1:8000; the demo overlay is saved at
+`artstockfish_demo_overlay.svg`.

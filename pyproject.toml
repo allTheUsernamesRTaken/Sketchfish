@@ -19,7 +19,9 @@ dependencies = [
 # Detection / geometry deps land in later waves (M2/M3); kept out of the core install.
 detect = ["mediapipe", "pycpd"]
 geom = ["shapely"]
-dev = ["pytest"]
+# M4 product surface (spec §8 M4): SVG overlay + FastAPI web app + static page.
+web = ["fastapi", "svgwrite", "python-multipart", "uvicorn"]
+dev = ["pytest", "httpx"]
 
 [project.scripts]
 artstockfish = "artstockfish.cli:main"

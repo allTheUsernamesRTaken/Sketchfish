@@ -441,3 +441,58 @@ DETECT_EVAL_MAX_SIDE = 640         # working size: photos downscale; detection s
 DETECT_EVAL_MAX_YAW_DEG = 20.0     # scope §3 "front-facing-ish": excludes profile photos
 DETECT_EVAL_CASES_PER_PHOTO = 4    # distorted eval pairs sampled per usable photo
 DETECT_EVAL_SEED = 20260612        # deterministic harness (principle #7)
+
+# --- contour ---
+# M3 contour measurement (spec §8 M3): after similarity alignment, sample
+# corresponded contour segments by arc length, measure signed perpendicular
+# distance in % head height, smooth, then surface maximal same-sign runs.
+CONTOUR_SAMPLE_COUNT = 96          # dense enough to localize a 68-pt jaw bulge within 10% arc
+CONTOUR_SMOOTH_WINDOW = 7          # odd moving-average window for stable same-sign runs
+CONTOUR_RUN_OK_MAX = DISPLACEMENT_OK_MAX  # spec §6 displacement floor for local contour offsets
+CONTOUR_MIN_RUN_ARC_FRAC = 0.06    # suppress tiny point-noise runs; M3 wants visible segments
+CONTOUR_CURVATURE_OK_MAX = 12.0    # deg/segment; curvature profile noise floor for angularity
+CONTOUR_CURVATURE_TIERS = (12.0, 20.0, 35.0)  # angular/rounded visibility tiers
+CONTOUR_CURVATURE_SMOOTH_WINDOW = 5
+CONTOUR_SEVERITY_UNIT = DISPLACEMENT_OK_MAX  # spec §9.5 score normalization analogue
+CONTOUR_WEIGHT = IMPORTANCE_WEIGHTS["face_oval"]  # spec §9.5: face oval importance 0.7
+CONTOUR_SEGMENTS = {
+    "jaw": {
+        "indices": tuple(range(0, 17)),
+        "feature": "jaw contour",
+        "anchor_names": (
+            "right temple",
+            "right jaw",
+            "right lower jaw",
+            "chin",
+            "left lower jaw",
+            "left jaw",
+            "left temple",
+        ),
+    },
+    "face_oval": {
+        # The 68-point set has only the visible lower oval/jaw contour; this is
+        # the v1 face-oval proxy until a detector supplies crown/cheek contours.
+        "indices": tuple(range(0, 17)),
+        "feature": "face oval",
+        "anchor_names": (
+            "right temple",
+            "right jaw",
+            "right lower jaw",
+            "chin",
+            "left lower jaw",
+            "left jaw",
+            "left temple",
+        ),
+    },
+}
+CONTOUR_DEFAULT_SEGMENTS = ("jaw",)
+
+# --- negspace ---
+# M3 negative-space measurement (spec §8 M3): find closed background regions via
+# flood fill, correspond regions by centroid after alignment, then compare area
+# and aspect ratio. Magnitudes are percent deviation from the reference region.
+NEGSPACE_MIN_REGION_AREA = 24      # px; drop specks from binary flood-fill regions
+NEGSPACE_AREA_OK_MAX = AREA_OK_MAX # spec §6 area floor: <8% OK
+NEGSPACE_ASPECT_OK_MAX = 8.0       # %aspect deviation floor, area-tier analogue
+NEGSPACE_ASPECT_TIERS = (8.0, 15.0, 30.0)
+NEGSPACE_WEIGHT = 0.5              # background-shape cue, below face features
