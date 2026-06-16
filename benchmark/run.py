@@ -136,7 +136,7 @@ def format_table(ours: SystemScore, vlm: SystemScore | None, vlm_label: str) -> 
         if key == "localization":
             return _fmt_pct(score.localization)
         if key == "magnitude":
-            return f"{score.median_magnitude_error * 100:.1f}% (median |err|)"
+            return f"{score.median_magnitude_error * 100:.1f}% (median abs error)"
         if key == "consistency":
             return f"{score.consistency:.3f}"
         return ""
