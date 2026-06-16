@@ -40,3 +40,11 @@ benchmark/_vlm_cache/
 artstockfish_*overlay.png
 artstockfish_*overlay.svg
 artstockfish_bench_*.png
+
+# AI agent guidance / planning docs — kept local only.
+AGENTS.md
+CLAUDE.md
+ART_STOCKFISH_SPEC.md
+IMPLEMENTATION_PLAN.md
+DECISIONS.md
+REAL_SKETCH_VALIDATION.md
