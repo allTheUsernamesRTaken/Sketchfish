@@ -26,6 +26,7 @@ htmlcov/
 Thumbs.db
 
 .claude/
+.autoclaude/
 
 # Secrets — API keys for the benchmark VLM baselines. NEVER commit. Use .env.example
 # as the template; the real .env stays local.
