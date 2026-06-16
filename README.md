@@ -29,13 +29,13 @@ schema), and score both identically against ground truth.
 <!-- BENCHMARK:START -->
 Protocol: **50 triples** (reference, distorted sketch, ground-truth findings) × **3 repeats**. Same labeled errors, same scoring for both systems.
 
-| Metric | Art Stockfish (ours) | Frontier VLM (`—`) | |
+| Metric | Art Stockfish (ours) | Frontier VLM (`gpt-5.5`) | |
 |---|---|---|---|
-| Finding precision (id+direction) | 98.9% | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | higher is better |
-| Finding recall | 100.0% | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | higher is better |
-| Localization (right feature) | 100.0% | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | higher is better |
-| Magnitude error | 0.0% (median |err|) | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | lower is better |
-| Run-to-run consistency (Jaccard, 3×) | 1.000 | _pending — run `python -m benchmark.run --provider openai` (or `anthropic`)_ | 1.0 = identical every run |
+| Finding precision (id+direction) | 98.9% | 63.5% | higher is better |
+| Finding recall | 100.0% | 70.5% | higher is better |
+| Localization (right feature) | 100.0% | 76.1% | higher is better |
+| Magnitude error | 0.0% (median |err|) | 4.7% (median |err|) | lower is better |
+| Run-to-run consistency (Jaccard, 3×) | 1.000 | 0.696 | 1.0 = identical every run |
 <!-- BENCHMARK:END -->
 
 Reproduce:

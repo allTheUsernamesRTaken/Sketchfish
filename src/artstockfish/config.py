@@ -516,6 +516,15 @@ BENCH_VLM_MAX_TOKENS = 4096        # plenty for a JSON finding list; we stream t
 # against it, so leave generous headroom) and temperature must stay default.
 BENCH_OPENAI_MODEL = "gpt-5.5"
 BENCH_OPENAI_MAX_TOKENS = 16000    # reasoning + the small JSON answer; avoids truncation
+# OpenAI reasoning effort (GPT-5.x: "minimal" | "low" | "medium" | "high"). Default
+# None = the model's own default (what the first published run used — keeps that run's
+# cache valid). "low"/"minimal" cut latency and cost sharply on this perception task;
+# set via --reasoning-effort. Only mixed into the cache key when non-None, so opting in
+# never silently reuses default-effort responses.
+BENCH_OPENAI_REASONING_EFFORT: str | None = None
+# VLM calls are independent, so run them concurrently. Wall-clock scales ~1/workers
+# until the provider rate-limits; cost is unchanged. Tune with --workers.
+BENCH_VLM_WORKERS = 8
 # Rendering: both the reference and the sketch are drawn as clean 68-point line
 # faces on the SAME fixed canvas/frame, so a local error (an eye too high) is
 # visible while a uniform shift/scale is not — mirroring the similarity-invariance

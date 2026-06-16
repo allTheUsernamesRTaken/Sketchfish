@@ -149,9 +149,22 @@ class _CachedVLM:
         self._client = client  # lazily constructed if None
         self.system_prompt = _SYSTEM_PROMPT.format(vocab=vocab_prompt_block())
 
+    def _cache_tag(self) -> str:
+        """Extra cache-key component for request settings that change the output.
+
+        Empty by default so existing cache keys are preserved; a subclass returns a
+        non-empty tag only when an opt-in setting (e.g. reasoning effort) is active.
+        """
+        return ""
+
     def _cache_path(self, ref_png: bytes, sketch_png: bytes, repeat: int) -> Path:
         h = hashlib.sha256()
-        for part in (self.model.encode(), PROMPT_VERSION.encode(), str(repeat).encode(), ref_png, sketch_png):
+        parts = [self.model.encode(), PROMPT_VERSION.encode(), str(repeat).encode()]
+        tag = self._cache_tag()
+        if tag:  # only when set, so default-setting keys never change
+            parts.append(tag.encode())
+        parts += [ref_png, sketch_png]
+        for part in parts:
             h.update(hashlib.sha256(part).digest())
         return self.cache_dir / f"{h.hexdigest()}.json"
 
@@ -234,8 +247,19 @@ class OpenAIVLM(_CachedVLM):
     run-to-run variance, which is the input to the consistency metric).
     """
 
-    def __init__(self, model: str = config.BENCH_OPENAI_MODEL, cache_dir=None, *, client=None):
+    def __init__(
+        self,
+        model: str = config.BENCH_OPENAI_MODEL,
+        cache_dir=None,
+        *,
+        reasoning_effort: str | None = config.BENCH_OPENAI_REASONING_EFFORT,
+        client=None,
+    ):
         super().__init__(model, cache_dir, client=client)
+        self.reasoning_effort = reasoning_effort
+
+    def _cache_tag(self) -> str:
+        return f"reff={self.reasoning_effort}" if self.reasoning_effort else ""
 
     def _ensure_client(self):
         if self._client is None:
@@ -261,7 +285,7 @@ class OpenAIVLM(_CachedVLM):
 
     def _request(self, ref_png: bytes, sketch_png: bytes) -> dict:
         client = self._ensure_client()
-        response = client.chat.completions.create(
+        kwargs: dict = dict(
             model=self.model,
             max_completion_tokens=config.BENCH_OPENAI_MAX_TOKENS,
             messages=self._messages(ref_png, sketch_png),
@@ -274,6 +298,9 @@ class OpenAIVLM(_CachedVLM):
                 },
             },
         )
+        if self.reasoning_effort:
+            kwargs["reasoning_effort"] = self.reasoning_effort
+        response = client.chat.completions.create(**kwargs)
         text = response.choices[0].message.content or "{}"
         return json.loads(text)
 

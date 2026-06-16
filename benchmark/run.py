@@ -70,22 +70,49 @@ def run_our_system(triples: list[Triple], repeats: int) -> RunMatrix:
     return [[list(case) for case in one] for _ in range(repeats)]
 
 
-def run_vlm(triples: list[Triple], vlm: VLMClient, repeats: int) -> RunMatrix:
-    # Render each pair once (deterministic), then sample the VLM `repeats` times.
+def run_vlm(
+    triples: list[Triple],
+    vlm: VLMClient,
+    repeats: int,
+    *,
+    workers: int = config.BENCH_VLM_WORKERS,
+) -> RunMatrix:
+    """Sample the VLM `repeats` times per case. Calls are independent, so they run
+    concurrently (cache hits short-circuit; cache writes go to distinct files)."""
     rendered = [render.render_pair(t.reference.points, t.sketch.points) for t in triples]
     matrix: RunMatrix = [[[] for _ in triples] for _ in range(repeats)]
-    for r in range(repeats):
-        for c, (triple, (ref_png, sketch_png)) in enumerate(zip(triples, rendered)):
-            matrix[r][c] = vlm.critique(ref_png, sketch_png, case_id=triple.case_id, repeat=r)
+    tasks = [(r, c) for r in range(repeats) for c in range(len(triples))]
+
+    def work(rc: tuple[int, int]):
+        r, c = rc
+        ref_png, sketch_png = rendered[c]
+        return rc, vlm.critique(ref_png, sketch_png, case_id=triples[c].case_id, repeat=r)
+
+    if workers <= 1:
+        results = (work(rc) for rc in tasks)
+    else:
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            results = list(ex.map(work, tasks))
+    for (r, c), found in results:
+        matrix[r][c] = found
     return matrix
 
 
 def run_benchmark(
-    triples: list[Triple], vlm: VLMClient | None, repeats: int
+    triples: list[Triple],
+    vlm: VLMClient | None,
+    repeats: int,
+    *,
+    workers: int = config.BENCH_VLM_WORKERS,
 ) -> tuple[SystemScore, SystemScore | None]:
     expected = [ground_truth(t) for t in triples]
     ours = score_system(expected, run_our_system(triples, repeats))
-    vlm_score = score_system(expected, run_vlm(triples, vlm, repeats)) if vlm is not None else None
+    vlm_score = (
+        score_system(expected, run_vlm(triples, vlm, repeats, workers=workers))
+        if vlm is not None else None
+    )
     return ours, vlm_score
 
 
@@ -170,6 +197,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repeats", type=int, default=config.BENCH_REPEATS)
     parser.add_argument("--seed", type=int, default=config.BENCH_SEED)
     parser.add_argument("--model", default=None, help="override the provider's default model")
+    parser.add_argument(
+        "--reasoning-effort", default=config.BENCH_OPENAI_REASONING_EFFORT,
+        choices=("minimal", "low", "medium", "high"),
+        help="OpenAI reasoning effort (lower = faster/cheaper); ignored for anthropic",
+    )
+    parser.add_argument(
+        "--workers", type=int, default=config.BENCH_VLM_WORKERS,
+        help="concurrent VLM requests (wall-clock ~1/workers; cost unchanged)",
+    )
     parser.add_argument("--no-readme", action="store_true", help="don't write README")
     args = parser.parse_args(argv)
 
@@ -189,17 +225,19 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 2
         model_label = args.model or default_model
-        vlm = factory(model=model_label)
+        kwargs = {"reasoning_effort": args.reasoning_effort} if args.provider == "openai" else {}
+        vlm = factory(model=model_label, **kwargs)
 
     triples = build_dataset(n_cases=args.cases, seed=args.seed)
     print(f"Running benchmark: {len(triples)} triples × {args.repeats} repeats "
-          f"(provider={args.provider}, model={model_label})...", file=sys.stderr)
-    ours, vlm_score = run_benchmark(triples, vlm, args.repeats)
+          f"(provider={args.provider}, model={model_label}, workers={args.workers})...",
+          file=sys.stderr)
+    ours, vlm_score = run_benchmark(triples, vlm, args.repeats, workers=args.workers)
 
     table = format_table(ours, vlm_score, model_label)
     print("\n" + table + "\n")
 
-    results_path = write_results(ours, vlm_score, args.model, args.seed)
+    results_path = write_results(ours, vlm_score, model_label, args.seed)
     print(f"Results written to {results_path}", file=sys.stderr)
     if not args.no_readme:
         wrote = splice_into_readme(table)
